@@ -119,6 +119,59 @@ void ApiService::pollTask(const QString &apiKey, const QString &taskId) {
     });
 }
 
+void ApiService::pollAllTasks(const QString &apiKey) {
+    // 批量查询所有任务，不需要 task_id 参数
+    QString urlStr = Config::QUERY_URL;
+
+    QNetworkRequest request{QUrl(urlStr)};
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", ("Bearer " + apiKey).toUtf8());
+
+    qDebug();
+    QNetworkReply *reply = manager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [=, this]() {
+        reply->deleteLater();
+        if(reply->error()) {
+            qDebug() << "Batch poll failed:" << reply->errorString();
+            emit errorOccurred("批量查询失败: " + reply->errorString());
+            return;
+        }
+
+        QByteArray responseData = reply->readAll();
+        qDebug() << "Batch poll response:" << QString::fromUtf8(responseData);
+
+        QJsonDocument doc = QJsonDocument::fromJson(responseData);
+        QJsonObject resp = doc.object();
+
+        // 发射批量查询结果信号
+        emit allTasksPolled(resp);
+
+        // 解析 task 对象（如果返回单个任务）
+        if (resp.contains("task")) {
+            QJsonObject taskObj = resp["task"].toObject();
+            QString taskId = taskObj["task_id"].toString();
+            QString status = taskObj["status"].toString();
+
+            qDebug() << "Batch response contains task:" << taskId << "status:" << status;
+
+            if (status == "TASK_STATUS_SUCCEED") {
+                QString videoUrl;
+                QJsonArray videos = resp["videos"].toArray();
+                if (!videos.isEmpty()) {
+                    QJsonObject videoObj = videos[0].toObject();
+                    videoUrl = videoObj["video_url"].toString();
+                }
+                emit taskPolled(taskId, true, videoUrl, "");
+            } else if (status == "TASK_STATUS_FAILED") {
+                QString error = taskObj["reason"].toString();
+                emit taskPolled(taskId, false, "", error);
+            } else {
+                emit taskPolled(taskId, false, "", "STATUS_PROCESSING");
+            }
+        }
+    });
+}
+
 void ApiService::downloadVideo(const QString &url) {
     QNetworkRequest request{QUrl(url)};
     QNetworkReply *reply = manager->get(request);

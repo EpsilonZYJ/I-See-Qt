@@ -54,8 +54,8 @@ void TaskHistoryWindow::setupUi() {
     // Task ID 查询区域
     QLabel *taskIdLabel = new QLabel("Task ID:", this);
     taskIdInput = new QLineEdit(this);
-    taskIdInput->setPlaceholderText("输入 Task ID 查询...");
-    taskIdInput->setMinimumWidth(200);
+    taskIdInput->setPlaceholderText("输入 Task ID 或留空查询所有任务...");
+    taskIdInput->setMinimumWidth(250);
 
     QLabel *apiKeyLabel = new QLabel("API Key:", this);
     apiKeyInput = new QLineEdit(this);
@@ -394,16 +394,29 @@ void TaskHistoryWindow::onQueryByTaskId() {
     QString taskId = taskIdInput->text().trimmed();
     QString apiKey = apiKeyInput->text().trimmed();
 
-    if (taskId.isEmpty()) {
-        QMessageBox::warning(this, "提示", "请输入 Task ID");
-        return;
-    }
-
     if (apiKey.isEmpty()) {
         QMessageBox::warning(this, "提示", "请输入 API Key");
         return;
     }
 
+    // 如果 Task ID 为空，使用批量查询
+    if (taskId.isEmpty()) {
+        statusLabel->setText("正在批量查询所有任务...");
+        queryByIdBtn->setEnabled(false);
+
+        // 调用批量查询 API
+        apiService->pollAllTasks(apiKey);
+
+        // 延迟恢复按钮
+        QTimer::singleShot(3000, this, [this]() {
+            queryByIdBtn->setEnabled(true);
+            statusLabel->setText("批量查询完成");
+        });
+
+        return;
+    }
+
+    // 如果有 Task ID，查询单个任务
     // 检查是否已存在
     TaskItem existingTask = dbService->getTask(taskId);
     if (!existingTask.taskId.isEmpty()) {
