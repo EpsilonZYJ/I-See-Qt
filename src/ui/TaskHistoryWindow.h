@@ -43,6 +43,7 @@ private:
     void pollPendingTask(const TaskItem &task);
     void downloadVideoForTask(const QString &taskId, const QString &videoUrl);
     void onVideoDownloadedForTask(const QString &taskId, const QString &localPath);
+    void retryFailedTasks();  // 重试失败的任务
 
     TaskDatabaseService *dbService;
     ApiService *apiService;

@@ -34,8 +34,13 @@ private slots:
     void onTaskSubmitted(const QString &taskId);
     void onTaskFinished(bool success, const QString &result, const QString &error);
     void onVideoDownloaded(const QString &tempPath);
+    void onSmartPoll();  // 智能轮询槽函数
 
 private:
+    void startSmartPolling();  // 开始智能轮询
+    void stopPolling();  // 停止轮询
+    void updateWaitingTime();  // 更新等待时间显示
+
     ApiService *apiService;
     HistoryService *historyService;
     TaskDatabaseService *taskDbService;
@@ -43,6 +48,14 @@ private:
     QString currentTaskId;
     QString currentApiKey;
     QString currentPrompt;
+
+    // 智能轮询相关
+    QDateTime taskStartTime;  // 任务开始时间
+    int pollAttempts;  // 轮询次数
+    int currentInterval;  // 当前轮询间隔（毫秒）
+    static const int MAX_WAIT_TIME = 300;  // 最大等待时间（秒）5分钟
+    static const int INITIAL_INTERVAL = 3000;  // 初始轮询间隔3秒
+    static const int MAX_INTERVAL = 30000;  // 最大轮询间隔30秒
 };
 
 #endif // MAINVIEWMODEL_H

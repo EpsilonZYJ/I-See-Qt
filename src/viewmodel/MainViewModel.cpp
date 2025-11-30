@@ -2,7 +2,8 @@
 #include "services/TaskDatabaseService.h"
 #include "models/TaskItem.h"
 
-MainViewModel::MainViewModel(QObject *parent) : QObject(parent) {
+MainViewModel::MainViewModel(QObject *parent) : QObject(parent),
+    pollAttempts(0), currentInterval(INITIAL_INTERVAL) {
     apiService = new ApiService(this);
     historyService = new HistoryService(this);
     taskDbService = new TaskDatabaseService(this);
@@ -19,12 +20,11 @@ MainViewModel::MainViewModel(QObject *parent) : QObject(parent) {
     connect(apiService, &ApiService::errorOccurred, this, [this](const QString &msg){
         if(msg == "STATUS_PROCESSING") return; // 忽略处理中的内部信号
         emit errorOccurred(msg);
-        pollTimer->stop();
+        stopPolling();
     });
 
-    connect(pollTimer, &QTimer::timeout, this, [this](){
-        apiService->pollTask(currentApiKey, currentTaskId);
-    });
+    // 使用智能轮询
+    connect(pollTimer, &QTimer::timeout, this, &MainViewModel::onSmartPoll);
 }
 
 void MainViewModel::loadHistory() {
@@ -63,12 +63,14 @@ void MainViewModel::onTaskSubmitted(const QString &taskId) {
 
     emit statusChanged("任务已提交 (" + taskId + ")，正在生成...");
     emit progressUpdated(30);
-    pollTimer->start(3000); // 3秒轮询
+
+    // 启动智能轮询
+    startSmartPolling();
 }
 
 void MainViewModel::onTaskFinished(bool success, const QString &result, const QString &error) {
     if(success) {
-        pollTimer->stop();
+        stopPolling();
 
         // 更新数据库中的任务状态
         TaskItem task = taskDbService->getTask(currentTaskId);
@@ -84,7 +86,7 @@ void MainViewModel::onTaskFinished(bool success, const QString &result, const QS
         emit progressUpdated(80);
         apiService->downloadVideo(result); // result is URL
     } else if (!error.isEmpty()) {
-        pollTimer->stop();
+        stopPolling();
 
         // 更新数据库中的任务状态为失败
         TaskItem task = taskDbService->getTask(currentTaskId);
@@ -149,3 +151,85 @@ QString MainViewModel::getCurrentSavePath() const {
 TaskDatabaseService* MainViewModel::getTaskDatabaseService() const {
     return taskDbService;
 }
+
+void MainViewModel::startSmartPolling() {
+    taskStartTime = QDateTime::currentDateTime();
+    pollAttempts = 0;
+    currentInterval = INITIAL_INTERVAL;
+
+    // 立即进行第一次查询
+    onSmartPoll();
+}
+
+void MainViewModel::stopPolling() {
+    pollTimer->stop();
+    pollAttempts = 0;
+    currentInterval = INITIAL_INTERVAL;
+}
+
+void MainViewModel::onSmartPoll() {
+    // 检查是否超时（5分钟）
+    int elapsedSeconds = taskStartTime.secsTo(QDateTime::currentDateTime());
+
+    if (elapsedSeconds > MAX_WAIT_TIME) {
+        // 超时，标记为失败并保存
+        stopPolling();
+
+        TaskItem task = taskDbService->getTask(currentTaskId);
+        if (!task.taskId.isEmpty()) {
+            task.status = TaskStatus::Failed;
+            task.errorMessage = "查询超时（超过5分钟）";
+            task.updateTime = QDateTime::currentDateTime();
+            taskDbService->updateTask(task);
+        }
+
+        emit statusChanged("查询超时");
+        emit progressUpdated(0);
+        emit errorOccurred("任务查询超时（超过5分钟）\n"
+                          "任务 ID: " + currentTaskId + "\n"
+                          "任务已保存到历史记录，可在任务历史窗口重新查询");
+        return;
+    }
+
+    // 更新等待时间显示
+    updateWaitingTime();
+
+    // 执行查询
+    pollAttempts++;
+    qDebug() << "Smart poll attempt" << pollAttempts << "after" << elapsedSeconds << "seconds, interval:" << currentInterval << "ms";
+    apiService->pollTask(currentApiKey, currentTaskId);
+
+    // 计算下一次查询间隔（指数退避）
+    // 间隔序列：3s, 5s, 8s, 13s, 21s, 30s(max)
+    int nextInterval = currentInterval;
+    if (pollAttempts >= 3) {
+        // 从第3次开始使用指数退避
+        nextInterval = qMin(currentInterval * 1.6, (double)MAX_INTERVAL);
+    }
+    currentInterval = nextInterval;
+
+    // 设置下一次查询
+    pollTimer->start(currentInterval);
+}
+
+void MainViewModel::updateWaitingTime() {
+    int elapsedSeconds = taskStartTime.secsTo(QDateTime::currentDateTime());
+    int remainingSeconds = MAX_WAIT_TIME - elapsedSeconds;
+
+    int minutes = elapsedSeconds / 60;
+    int seconds = elapsedSeconds % 60;
+
+    QString timeStr = QString("已等待: %1分%2秒").arg(minutes).arg(seconds, 2, 10, QChar('0'));
+
+    if (remainingSeconds < 60) {
+        timeStr += QString(" (剩余: %1秒)").arg(remainingSeconds);
+    }
+
+    emit statusChanged("正在生成视频... " + timeStr);
+
+    // 更新进度条（基于时间）
+    int progress = 30 + (elapsedSeconds * 50 / MAX_WAIT_TIME); // 30-80%
+    progress = qMin(progress, 75); // 最多75%
+    emit progressUpdated(progress);
+}
+

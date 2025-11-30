@@ -33,6 +33,9 @@ TaskHistoryWindow::TaskHistoryWindow(TaskDatabaseService *dbService, ApiService 
 
     loadTasks();
 
+    // 自动重试查询失败的任务
+    retryFailedTasks();
+
     // 自动刷新未完成的任务（每30秒）
     autoRefreshTimer = new QTimer(this);
     connect(autoRefreshTimer, &QTimer::timeout, this, &TaskHistoryWindow::onAutoRefreshTimeout);
@@ -545,3 +548,48 @@ void TaskHistoryWindow::onVideoDownloadedForTask(const QString &taskId, const QS
     }
 }
 
+void TaskHistoryWindow::retryFailedTasks() {
+    // 获取所有失败的任务（包括超时的）
+    QList<TaskItem> allTasks = dbService->getAllTasks();
+    QList<TaskItem> failedTasks;
+
+    for (const TaskItem &task : allTasks) {
+        if (task.status == TaskStatus::Failed) {
+            // 检查是否是查询超时导致的失败
+            if (task.errorMessage.contains("超时") || task.errorMessage.contains("timeout")) {
+                failedTasks.append(task);
+            }
+        }
+    }
+
+    if (failedTasks.isEmpty()) {
+        qDebug() << "No failed tasks to retry";
+        return;
+    }
+
+    qDebug() << "Found" << failedTasks.size() << "failed tasks, retrying...";
+    statusLabel->setText(QString("正在重试 %1 个失败任务...").arg(failedTasks.size()));
+
+    // 对每个失败的任务重新查询
+    for (const TaskItem &task : failedTasks) {
+        if (!task.apiKey.isEmpty()) {
+            qDebug() << "Retrying task:" << task.taskId;
+
+            // 更新状态为处理中
+            TaskItem updatedTask = task;
+            updatedTask.status = TaskStatus::Processing;
+            updatedTask.errorMessage = ""; // 清除错误信息
+            updatedTask.updateTime = QDateTime::currentDateTime();
+            dbService->updateTask(updatedTask);
+
+            // 发起查询
+            apiService->pollTask(task.apiKey, task.taskId);
+        }
+    }
+
+    // 3秒后刷新列表
+    QTimer::singleShot(3000, this, [this]() {
+        loadTasks();
+        statusLabel->setText("重试完成");
+    });
+}
