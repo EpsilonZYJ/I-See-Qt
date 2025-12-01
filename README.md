@@ -74,7 +74,7 @@ I-See Video Generator Client is a modern, cross-platform desktop application bui
 
 #### 🗄️ Data Management
 - **Database Schema**: Optimized SQLite with indexed queries
-- **File Organization**: Videos stored in `~/Movies/VideoGenClient/`
+- **File Organization**: Videos stored in `~/Movies/I See/`
 - **Data Integrity**: Persistent storage with automatic task tracking
 
 ## 🚀 Installation
@@ -108,7 +108,7 @@ cmake -G Ninja -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@6 ..
 ninja
 
 # Run the application
-./VideoGenClient.app/Contents/MacOS/VideoGenClient
+./I-See.app/Contents/MacOS/I-See
 ```
 
 #### Windows
@@ -131,7 +131,7 @@ cmake -G "Visual Studio 17 2022" -DCMAKE_PREFIX_PATH="C:/Qt/6.x/msvc2022_64" ..
 cmake --build . --config Release
 
 # Run
-Release\VideoGenClient.exe
+Release\I-See.exe
 ```
 
 #### Linux
@@ -152,7 +152,7 @@ cmake -G Ninja ..
 ninja
 
 # Run
-./VideoGenClient
+./I-See
 ```
 
 ## 📚 Usage
@@ -161,7 +161,7 @@ ninja
 
 1. **Launch the Application**
    ```bash
-   ./VideoGenClient
+   ./I-See
    ```
 
 2. **Configure API Key**
@@ -192,15 +192,15 @@ GET https://api.ppinfra.com/v3/async/task-result?task_id={taskId}
 
 ### Database Location
 
-- **macOS**: `~/Library/Application Support/VideoGenClient/tasks.db`
-- **Windows**: `%APPDATA%/VideoGenClient/tasks.db`
-- **Linux**: `~/.local/share/VideoGenClient/tasks.db`
+- **macOS**: `~/Library/Application Support/ISeeOrg/I See/tasks.db`
+- **Windows**: `%APPDATA%/ISeeOrg/I See/tasks.db`
+- **Linux**: `~/.local/share/ISeeOrg/I See/tasks.db`
 
 ### Video Storage Location
 
-- **macOS**: `~/Movies/VideoGenClient/`
-- **Windows**: `%USERPROFILE%\Videos\VideoGenClient\`
-- **Linux**: `~/Videos/VideoGenClient/`
+- **macOS**: `~/Movies/I See/`
+- **Windows**: `%USERPROFILE%\Videos\I See\`
+- **Linux**: `~/Videos/I See/`
 
 ## 📊 Features Comparison
 
