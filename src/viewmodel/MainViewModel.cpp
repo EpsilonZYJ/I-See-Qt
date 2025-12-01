@@ -32,9 +32,10 @@ void MainViewModel::loadHistory() {
     emit historyUpdated();
 }
 
-void MainViewModel::startGeneration(const QString &apiKey, const QString &prompt) {
+void MainViewModel::startGeneration(const QString &apiKey, const QString &prompt, const QMap<QString, QString> &params) {
     currentApiKey = apiKey;
     currentPrompt = prompt;
+    currentParams = params;  // 保存参数
     emit statusChanged("正在提交任务...");
     emit progressUpdated(10);
     apiService->submitTask(apiKey, prompt);
@@ -48,13 +49,16 @@ void MainViewModel::onTaskSubmitted(const QString &taskId) {
     task.taskId = taskId;
     task.prompt = currentPrompt;
     task.apiKey = currentApiKey;
-    task.width = 1280;
-    task.height = 720;
-    task.resolution = "1080p";
-    task.aspectRatio = "16:9";
-    task.duration = 5;
-    task.cameraFixed = false;
-    task.seed = 123;
+
+    // 使用用户配置的参数，如果没有则使用默认值
+    task.width = currentParams.value("width", "1280").toInt();
+    task.height = currentParams.value("height", "720").toInt();
+    task.resolution = currentParams.value("resolution", "1080p");
+    task.aspectRatio = currentParams.value("aspect_ratio", "16:9");
+    task.duration = currentParams.value("duration", "5").toInt();
+    task.cameraFixed = (currentParams.value("camera_fixed", "false") == "true");
+    task.seed = currentParams.value("seed", "123").toInt();
+
     task.status = TaskStatus::Processing;
     task.createTime = QDateTime::currentDateTime();
     task.updateTime = task.createTime;
@@ -150,6 +154,10 @@ QString MainViewModel::getCurrentSavePath() const {
 
 TaskDatabaseService* MainViewModel::getTaskDatabaseService() const {
     return taskDbService;
+}
+
+ApiService* MainViewModel::getApiService() const {
+    return apiService;
 }
 
 void MainViewModel::startSmartPolling() {

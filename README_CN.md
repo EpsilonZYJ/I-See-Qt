@@ -236,80 +236,6 @@ GET https://api.ppinfra.com/v3/async/task-result?task_id={taskId}
 - **Windows**: `%USERPROFILE%\Videos\VideoGenClient\`
 - **Linux**: `~/Videos/VideoGenClient/`
 
-## 🏗️ 架构设计
-
-### 项目结构
-
-```
-I-See-Qt/
-├── src/
-│   ├── main.cpp                    # 应用程序入口
-│   ├── const/
-│   │   ├── AppConfig.h            # 配置常量
-│   │   └── QtHeaders.h            # 集中的 Qt 头文件
-│   ├── models/
-│   │   └── TaskItem.h             # 任务数据模型
-│   ├── services/
-│   │   ├── ApiService.*           # API 通信层
-│   │   ├── HistoryService.*       # 本地历史管理
-│   │   └── TaskDatabaseService.*  # SQLite 数据库操作
-│   ├── viewmodel/
-│   │   └── MainViewModel.*        # MVVM 模式视图模型
-│   ├── ui/
-│   │   ├── MainWindow.*           # 主应用窗口
-│   │   ├── TaskHistoryWindow.*    # 任务历史浏览器
-│   │   └── SetupDialog.*          # 配置对话框
-│   └── utils/                     # 工具函数
-├── resources/
-│   └── ui.qrc                     # Qt 资源文件
-├── CMakeLists.txt                 # CMake 构建配置
-└── README.md                      # 本文件
-```
-
-### 技术栈
-
-- **GUI 框架**：Qt 6.x (Widgets)
-- **网络通信**：Qt Network (QNetworkAccessManager)
-- **数据库**：SQLite 通过 Qt SQL 模块
-- **多媒体**：Qt Multimedia（视频播放）
-- **构建系统**：CMake 3.16+
-- **编程语言**：C++23
-
-### 设计模式
-
-- **MVVM**（Model-View-ViewModel）：UI 和业务逻辑的清晰分离
-- **观察者模式**：信号-槽机制处理事件
-- **服务层**：抽象的 API 和数据库操作
-- **单例模式**：配置和服务管理
-
-### 数据库架构
-
-```sql
-CREATE TABLE tasks (
-    task_id TEXT PRIMARY KEY,
-    prompt TEXT NOT NULL,
-    api_key TEXT,
-    width INTEGER,
-    height INTEGER,
-    resolution TEXT,
-    aspect_ratio TEXT,
-    duration INTEGER,
-    camera_fixed INTEGER,
-    seed INTEGER,
-    status INTEGER,
-    error_message TEXT,
-    video_url TEXT,
-    local_file_path TEXT,
-    create_time TEXT,
-    update_time TEXT,
-    complete_time TEXT
-);
-
--- 索引优化查询性能
-CREATE INDEX idx_create_time ON tasks(create_time DESC);
-CREATE INDEX idx_status ON tasks(status);
-```
-
 ## 📊 功能对比
 
 | 功能 | I-See 客户端 | Web 界面 | CLI 工具 |
@@ -363,42 +289,6 @@ CREATE INDEX idx_status ON tasks(status);
 - 为新功能添加文档
 - 确保跨平台兼容性
 
-## 📝 文档
-
-额外的文档位于项目根目录：
-
-- [API 更新指南](API_UPDATE_GUIDE.md) - API 集成详情
-- [任务历史指南](TASK_HISTORY_GUIDE.md) - 任务管理功能
-- [自动下载功能](AUTO_DOWNLOAD_FEATURE.md) - 视频下载机制
-- [Task ID 查询功能](TASK_ID_QUERY_FEATURE.md) - 通过 task ID 查询
-- [双击播放功能](DOUBLE_CLICK_PLAY_FEATURE.md) - 视频播放
-
-## 🐛 已知问题
-
-- [ ] 超大视频文件（>500MB）可能在 32 位系统上导致内存问题
-- [ ] 下载过程中网络中断需要手动重试
-- [ ] 任务历史窗口在 1000+ 任务时可能出现延迟（优化中）
-
-## 🗺️ 开发路线图
-
-### 版本 1.1（计划中）
-- [ ] 批量视频生成
-- [ ] 任务历史的高级过滤和搜索
-- [ ] 导出任务历史为 CSV/JSON
-- [ ] 深色模式支持
-- [ ] 视频缩略图预览
-
-### 版本 1.2（计划中）
-- [ ] 高级视频编辑功能
-- [ ] 任务历史的云同步
-- [ ] 多语言支持（中文、英文、日文）
-- [ ] 批量任务操作
-
-### 版本 2.0（计划中）
-- [ ] 自定义视频处理器的插件系统
-- [ ] 自动化的 REST API
-- [ ] 协作功能
-- [ ] 大规模使用的性能优化
 
 ## 💡 技术特点
 
@@ -427,16 +317,6 @@ CREATE INDEX idx_status ON tasks(status);
 ## 🙏 致谢
 
 - 使用 [Qt Framework](https://www.qt.io/) 构建
-- 视频生成由 [Seedance AI API](https://api.ppinfra.com/) 提供支持
-- 图标来自 [Qt Resources](https://doc.qt.io/qt-6/resources.html)
-- 灵感来自现代桌面应用程序设计原则
-
-## 📧 联系方式
-
-- **作者**：周煜杰 (EpsilonZYJ)
-- **邮箱**：your.email@example.com
-- **GitHub**：[@yourusername](https://github.com/yourusername)
-- **问题反馈**：[GitHub Issues](https://github.com/yourusername/I-See-Qt/issues)
 
 ## ⭐ Star 历史
 

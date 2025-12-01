@@ -13,7 +13,7 @@ public:
     explicit MainViewModel(QObject *parent = nullptr);
 
     // 给 UI 调用的方法
-    void startGeneration(const QString &apiKey, const QString &prompt);
+    void startGeneration(const QString &apiKey, const QString &prompt, const QMap<QString, QString> &params = QMap<QString, QString>());
     void loadHistory();
     void deleteHistoryItem(int index);
     QList<HistoryItem> getHistory() const;
@@ -21,6 +21,9 @@ public:
 
     // 获取数据库服务
     TaskDatabaseService* getTaskDatabaseService() const;
+
+    // 获取 API 服务
+    ApiService* getApiService() const;
 
 signals:
     // 通知 UI 更新的信号
@@ -48,6 +51,7 @@ private:
     QString currentTaskId;
     QString currentApiKey;
     QString currentPrompt;
+    QMap<QString, QString> currentParams;  // 当前任务参数
 
     // 智能轮询相关
     QDateTime taskStartTime;  // 任务开始时间

@@ -1,9 +1,12 @@
 #include "MainWindow.h"
 #include "TaskHistoryWindow.h"
+#include "SettingsDialog.h"
 #include "const/QtHeaders.h"
 #include "const/AppConfig.h"
+#include "services/TaskDatabaseService.h"
+#include "models/TaskItem.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow(nullptr) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow(nullptr), settingsDialog(nullptr) {
     viewModel = new MainViewModel(this);
 
     // 初始化 UI 布局
@@ -31,14 +34,80 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow
     // 2. UI -> UI/ViewModel
     connect(generateBtn, &QPushButton::clicked, this, &MainWindow::onGenerateClicked);
     connect(taskHistoryBtn, &QPushButton::clicked, this, &MainWindow::onShowTaskHistory);
+    connect(settingsBtn, &QPushButton::clicked, this, &MainWindow::onShowSettings);
+    connect(addParameterBtn, &QPushButton::clicked, this, [this]() {
+        addParameterRow("", "");
+    });
 
     // 列表点击播放
     connect(historyList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item){
         int row = historyList->row(item);
         auto items = viewModel->getHistory();
         if(row >= 0 && row < items.size()) {
-            player->setSource(QUrl::fromLocalFile(items[row].filePath));
-            player->play();
+            QString filePath = items[row].filePath;
+
+            // 检查视频文件是否存在
+            if (QFile::exists(filePath)) {
+                // 文件存在，直接播放
+                player->setSource(QUrl::fromLocalFile(filePath));
+                player->play();
+            } else {
+                // 文件不存在，尝试重新下载
+                statusLabel->setText("视频文件不存在，正在重新下载...");
+
+                // 从文件路径提取 task_id（格式：taskId_timestamp.mp4）
+                QFileInfo fileInfo(filePath);
+                QString fileName = fileInfo.fileName();
+                QString taskId = extractTaskIdFromFileName(fileName);
+
+                if (!taskId.isEmpty()) {
+                    // 从数据库查找任务
+                    TaskDatabaseService *dbService = viewModel->getTaskDatabaseService();
+                    TaskItem task = dbService->getTask(taskId);
+
+                    if (!task.taskId.isEmpty() && !task.videoUrl.isEmpty()) {
+                        // 找到任务且有视频 URL，重新下载
+                        qDebug() << "重新下载视频，Task ID:" << taskId;
+                        statusLabel->setText(QString("正在重新下载视频... (Task ID: %1)").arg(taskId));
+
+                        // 使用 ApiService 下载
+                        ApiService *downloadService = new ApiService(this);
+                        connect(downloadService, &ApiService::videoDownloaded, this, [this, taskId, filePath, downloadService](const QString &tempPath) {
+                            // 下载完成，移动到原位置
+                            QFile::remove(filePath); // 删除可能存在的旧文件
+                            if (QFile::rename(tempPath, filePath)) {
+                                statusLabel->setText("视频下载完成");
+                                player->setSource(QUrl::fromLocalFile(filePath));
+                                player->play();
+
+                                // 更新数据库
+                                TaskDatabaseService *dbService = viewModel->getTaskDatabaseService();
+                                TaskItem task = dbService->getTask(taskId);
+                                task.localFilePath = filePath;
+                                task.updateTime = QDateTime::currentDateTime();
+                                dbService->updateTask(task);
+                            } else {
+                                statusLabel->setText("视频文件移动失败");
+                            }
+                            downloadService->deleteLater();
+                        });
+
+                        connect(downloadService, &ApiService::errorOccurred, this, [this, downloadService](const QString &error) {
+                            statusLabel->setText("视频下载失败: " + error);
+                            downloadService->deleteLater();
+                        });
+
+                        downloadService->downloadVideo(task.videoUrl);
+                    } else {
+                        QMessageBox::warning(this, "提示",
+                            QString("无法重新下载视频\nTask ID: %1\n请在任务历史中重新查询该任务").arg(taskId));
+                        statusLabel->setText("视频文件不存在");
+                    }
+                } else {
+                    QMessageBox::warning(this, "提示", "无法从文件名提取 Task ID，无法重新下载");
+                    statusLabel->setText("视频文件不存在");
+                }
+            }
         }
     });
 
@@ -73,11 +142,60 @@ void MainWindow::setupUi() {
     // 1. 设置区域
     QGroupBox *settingsBox = new QGroupBox("设置");
     QVBoxLayout *settingsLayout = new QVBoxLayout;
+
+    // API Key 显示（只读）
     apiKeyEdit = new QLineEdit;
-    apiKeyEdit->setPlaceholderText("API Key (Bearer Token)");
+    apiKeyEdit->setPlaceholderText("未设置 API Key");
     apiKeyEdit->setEchoMode(QLineEdit::Password);
-    settingsLayout->addWidget(apiKeyEdit);
+    apiKeyEdit->setReadOnly(true);  // 设置为只读
+    apiKeyEdit->setStyleSheet("QLineEdit { background-color: #f0f0f0; }");
+
+    QHBoxLayout *keyLayout = new QHBoxLayout;
+    keyLayout->addWidget(new QLabel("API Key:"));
+    keyLayout->addWidget(apiKeyEdit);
+
+    // 设置按钮
+    settingsBtn = new QPushButton("⚙ 设置");
+    settingsBtn->setMinimumHeight(35);
+    settingsBtn->setMaximumWidth(100);
+    settingsBtn->setStyleSheet("QPushButton { font-weight: bold; }");
+    keyLayout->addWidget(settingsBtn);
+
+    settingsLayout->addLayout(keyLayout);
     settingsBox->setLayout(settingsLayout);
+
+    // 1.5 参数配置区域
+    QGroupBox *parametersBox = new QGroupBox("参数配置");
+    QVBoxLayout *parametersBoxLayout = new QVBoxLayout;
+
+    // 参数列表容器
+    QScrollArea *parametersScroll = new QScrollArea;
+    parametersScroll->setWidgetResizable(true);
+    parametersScroll->setMaximumHeight(200);
+
+    parametersWidget = new QWidget;
+    parametersLayout = new QVBoxLayout(parametersWidget);
+    parametersLayout->setSpacing(5);
+    parametersLayout->addStretch();
+
+    parametersScroll->setWidget(parametersWidget);
+
+    // 添加参数按钮
+    addParameterBtn = new QPushButton("+ 添加参数");
+    addParameterBtn->setMaximumWidth(120);
+
+    parametersBoxLayout->addWidget(parametersScroll);
+    parametersBoxLayout->addWidget(addParameterBtn);
+    parametersBox->setLayout(parametersBoxLayout);
+
+    // 添加默认参数
+    addParameterRow("width", "1280");
+    addParameterRow("height", "720");
+    addParameterRow("resolution", "1080p");
+    addParameterRow("aspect_ratio", "16:9");
+    addParameterRow("duration", "5");
+    addParameterRow("camera_fixed", "false");
+    addParameterRow("seed", "123");
 
     // 2. 输入区域
     promptEdit = new QTextEdit;
@@ -114,6 +232,7 @@ void MainWindow::setupUi() {
 
     // 组装右侧
     rightLayout->addWidget(settingsBox);
+    rightLayout->addWidget(parametersBox);
     rightLayout->addWidget(new QLabel("Prompt:"));
     rightLayout->addWidget(promptEdit);
     rightLayout->addWidget(generateBtn);
@@ -131,18 +250,27 @@ void MainWindow::setupUi() {
 }
 
 void MainWindow::onGenerateClicked() {
-    QString key = apiKeyEdit->text();
+    // 从设置中读取 API Key
+    QSettings s(Config::ORG_NAME, Config::APP_NAME);
+    QString key = s.value(Config::KEY_API_TOKEN).toString();
+
     if(key.isEmpty()) {
-        QMessageBox::warning(this, "提示", "请输入 API Key");
+        QMessageBox::warning(this, "提示", "请先在设置中配置 API Key");
         return;
     }
 
-    // 保存 Key
-    QSettings s(Config::ORG_NAME, Config::APP_NAME);
-    s.setValue(Config::KEY_API_TOKEN, key);
+    QString prompt = promptEdit->toPlainText();
+    if(prompt.isEmpty()) {
+        QMessageBox::warning(this, "提示", "请输入提示词");
+        return;
+    }
+
+
+    // 获取用户配置的参数
+    QMap<QString, QString> params = getParameters();
 
     generateBtn->setEnabled(false);
-    viewModel->startGeneration(key, promptEdit->toPlainText());
+    viewModel->startGeneration(key, prompt, params);
 }
 
 void MainWindow::onVideoReady(const QString &path) {
@@ -177,4 +305,144 @@ void MainWindow::onShowTaskHistory() {
     taskHistoryWindow->raise();
     taskHistoryWindow->activateWindow();
     taskHistoryWindow->refreshTasks();
+}
+
+void MainWindow::addParameterRow(const QString &name, const QString &value) {
+    ParameterRow row;
+
+    // 创建水平布局
+    row.layout = new QHBoxLayout;
+    row.layout->setSpacing(5);
+
+    // 参数名输入框
+    row.nameEdit = new QLineEdit;
+    row.nameEdit->setPlaceholderText("参数名 (如: width)");
+    row.nameEdit->setText(name);
+    row.nameEdit->setMaximumWidth(150);
+
+    // 参数值输入框
+    row.valueEdit = new QLineEdit;
+    row.valueEdit->setPlaceholderText("参数值 (如: 1280)");
+    row.valueEdit->setText(value);
+    row.valueEdit->setMaximumWidth(150);
+
+    // 删除按钮
+    row.removeBtn = new QPushButton("×");
+    row.removeBtn->setMaximumWidth(30);
+    row.removeBtn->setStyleSheet("QPushButton { color: red; font-weight: bold; }");
+
+    // 添加到布局
+    row.layout->addWidget(row.nameEdit);
+    row.layout->addWidget(new QLabel("="));
+    row.layout->addWidget(row.valueEdit);
+    row.layout->addWidget(row.removeBtn);
+    row.layout->addStretch();
+
+    // 保存到列表
+    int index = parameterRows.size();
+    parameterRows.append(row);
+
+    // 连接删除按钮
+    connect(row.removeBtn, &QPushButton::clicked, this, [this, index]() {
+        removeParameterRow(index);
+    });
+
+    // 插入到布局中（在 stretch 之前）
+    parametersLayout->insertLayout(parametersLayout->count() - 1, row.layout);
+}
+
+void MainWindow::removeParameterRow(int index) {
+    if (index < 0 || index >= parameterRows.size()) {
+        return;
+    }
+
+    ParameterRow &row = parameterRows[index];
+
+    // 从布局中移除
+    parametersLayout->removeItem(row.layout);
+
+    // 删除所有控件
+    delete row.nameEdit;
+    delete row.valueEdit;
+    delete row.removeBtn;
+
+    // 删除布局中的 QLabel
+    while (row.layout->count() > 0) {
+        QLayoutItem *item = row.layout->takeAt(0);
+        if (item->widget()) {
+            delete item->widget();
+        }
+        delete item;
+    }
+
+    delete row.layout;
+
+    // 从列表中移除
+    parameterRows.removeAt(index);
+
+    // 重新连接剩余按钮的索引
+    for (int i = index; i < parameterRows.size(); ++i) {
+        ParameterRow &r = parameterRows[i];
+        disconnect(r.removeBtn, nullptr, nullptr, nullptr);
+        connect(r.removeBtn, &QPushButton::clicked, this, [this, i]() {
+            removeParameterRow(i);
+        });
+    }
+}
+
+QMap<QString, QString> MainWindow::getParameters() const {
+    QMap<QString, QString> params;
+
+    for (const ParameterRow &row : parameterRows) {
+        QString name = row.nameEdit->text().trimmed();
+        QString value = row.valueEdit->text().trimmed();
+
+        if (!name.isEmpty() && !value.isEmpty()) {
+            params[name] = value;
+        }
+    }
+
+    return params;
+}
+
+void MainWindow::onShowSettings() {
+    if (!settingsDialog) {
+        settingsDialog = new SettingsDialog(this);
+
+        // 连接设置变化信号
+        connect(settingsDialog, &SettingsDialog::settingsChanged, this, &MainWindow::onSettingsChanged);
+    }
+
+    settingsDialog->exec();
+}
+
+void MainWindow::onSettingsChanged() {
+    // 重新加载 API Key 显示
+    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
+    QString apiKey = settings.value(Config::KEY_API_TOKEN).toString();
+    apiKeyEdit->setText(apiKey);
+
+    // 重新加载 API URLs
+    viewModel->getApiService()->reloadApiUrls();
+
+    statusLabel->setText("设置已更新并立即生效");
+
+    qDebug() << "Settings changed and reloaded";
+}
+
+QString MainWindow::extractTaskIdFromFileName(const QString &fileName) const {
+    // 视频文件名格式：taskId_timestamp.mp4
+    // 提取 taskId（第一个下划线之前的部分）
+    int underscorePos = fileName.indexOf('_');
+    if (underscorePos > 0) {
+        return fileName.left(underscorePos);
+    }
+
+    // 如果没有下划线，尝试提取 .mp4 之前的部分作为 taskId
+    int dotPos = fileName.lastIndexOf('.');
+    if (dotPos > 0) {
+        return fileName.left(dotPos);
+    }
+
+    return "";
 }
