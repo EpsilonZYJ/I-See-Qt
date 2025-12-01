@@ -156,6 +156,10 @@ TaskDatabaseService* MainViewModel::getTaskDatabaseService() const {
     return taskDbService;
 }
 
+ApiService* MainViewModel::getApiService() const {
+    return apiService;
+}
+
 void MainViewModel::startSmartPolling() {
     taskStartTime = QDateTime::currentDateTime();
     pollAttempts = 0;

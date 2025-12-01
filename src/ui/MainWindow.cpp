@@ -1,9 +1,10 @@
 #include "MainWindow.h"
 #include "TaskHistoryWindow.h"
+#include "SettingsDialog.h"
 #include "const/QtHeaders.h"
 #include "const/AppConfig.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow(nullptr) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow(nullptr), settingsDialog(nullptr) {
     viewModel = new MainViewModel(this);
 
     // 初始化 UI 布局
@@ -31,6 +32,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow
     // 2. UI -> UI/ViewModel
     connect(generateBtn, &QPushButton::clicked, this, &MainWindow::onGenerateClicked);
     connect(taskHistoryBtn, &QPushButton::clicked, this, &MainWindow::onShowTaskHistory);
+    connect(settingsBtn, &QPushButton::clicked, this, &MainWindow::onShowSettings);
     connect(addParameterBtn, &QPushButton::clicked, this, [this]() {
         addParameterRow("", "");
     });
@@ -76,10 +78,26 @@ void MainWindow::setupUi() {
     // 1. 设置区域
     QGroupBox *settingsBox = new QGroupBox("设置");
     QVBoxLayout *settingsLayout = new QVBoxLayout;
+
+    // API Key 显示（只读）
     apiKeyEdit = new QLineEdit;
-    apiKeyEdit->setPlaceholderText("API Key (Bearer Token)");
+    apiKeyEdit->setPlaceholderText("未设置 API Key");
     apiKeyEdit->setEchoMode(QLineEdit::Password);
-    settingsLayout->addWidget(apiKeyEdit);
+    apiKeyEdit->setReadOnly(true);  // 设置为只读
+    apiKeyEdit->setStyleSheet("QLineEdit { background-color: #f0f0f0; }");
+
+    QHBoxLayout *keyLayout = new QHBoxLayout;
+    keyLayout->addWidget(new QLabel("API Key:"));
+    keyLayout->addWidget(apiKeyEdit);
+
+    // 设置按钮
+    settingsBtn = new QPushButton("⚙ 设置");
+    settingsBtn->setMinimumHeight(35);
+    settingsBtn->setMaximumWidth(100);
+    settingsBtn->setStyleSheet("QPushButton { font-weight: bold; }");
+    keyLayout->addWidget(settingsBtn);
+
+    settingsLayout->addLayout(keyLayout);
     settingsBox->setLayout(settingsLayout);
 
     // 1.5 参数配置区域
@@ -168,9 +186,12 @@ void MainWindow::setupUi() {
 }
 
 void MainWindow::onGenerateClicked() {
-    QString key = apiKeyEdit->text();
+    // 从设置中读取 API Key
+    QSettings s(Config::ORG_NAME, Config::APP_NAME);
+    QString key = s.value(Config::KEY_API_TOKEN).toString();
+
     if(key.isEmpty()) {
-        QMessageBox::warning(this, "提示", "请输入 API Key");
+        QMessageBox::warning(this, "提示", "请先在设置中配置 API Key");
         return;
     }
 
@@ -180,9 +201,6 @@ void MainWindow::onGenerateClicked() {
         return;
     }
 
-    // 保存 Key
-    QSettings s(Config::ORG_NAME, Config::APP_NAME);
-    s.setValue(Config::KEY_API_TOKEN, key);
 
     // 获取用户配置的参数
     QMap<QString, QString> params = getParameters();
@@ -323,3 +341,27 @@ QMap<QString, QString> MainWindow::getParameters() const {
     return params;
 }
 
+void MainWindow::onShowSettings() {
+    if (!settingsDialog) {
+        settingsDialog = new SettingsDialog(this);
+
+        // 连接设置变化信号
+        connect(settingsDialog, &SettingsDialog::settingsChanged, this, &MainWindow::onSettingsChanged);
+    }
+
+    settingsDialog->exec();
+}
+
+void MainWindow::onSettingsChanged() {
+    // 重新加载 API Key 显示
+    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
+    QString apiKey = settings.value(Config::KEY_API_TOKEN).toString();
+    apiKeyEdit->setText(apiKey);
+
+    // 重新加载 API URLs
+    viewModel->getApiService()->reloadApiUrls();
+
+    statusLabel->setText("设置已更新并立即生效");
+
+    qDebug() << "Settings changed and reloaded";
+}

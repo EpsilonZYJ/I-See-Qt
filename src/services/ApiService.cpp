@@ -12,10 +12,51 @@
 
 ApiService::ApiService(QObject *parent) : QObject(parent) {
     manager = new QNetworkAccessManager(this);
+    loadApiUrls();
+}
+
+void ApiService::loadApiUrls() {
+    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
+
+    // 使用 SUBMIT_URL 和 QUERY_URL 的值作为设置键来读取自定义 URL
+    // 如果没有设置，则返回默认值（Config::SUBMIT_URL 和 Config::QUERY_URL）
+    submitUrl = settings.value("submitUrl", Config::SUBMIT_URL).toString();
+    queryUrl = settings.value("queryUrl", Config::QUERY_URL).toString();
+
+    qDebug() << "API URLs loaded:";
+    qDebug() << "  Submit:" << submitUrl << (submitUrl == Config::SUBMIT_URL ? "(default)" : "(custom)");
+    qDebug() << "  Query:" << queryUrl << (queryUrl == Config::QUERY_URL ? "(default)" : "(custom)");
+}
+
+void ApiService::setSubmitUrl(const QString &url) {
+    submitUrl = url;
+    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
+    settings.setValue("submitUrl", url);
+    qDebug() << "Submit URL saved:" << url;
+}
+
+void ApiService::setQueryUrl(const QString &url) {
+    queryUrl = url;
+    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
+    settings.setValue("queryUrl", url);
+    qDebug() << "Query URL saved:" << url;
+}
+
+QString ApiService::getSubmitUrl() const {
+    return submitUrl;
+}
+
+QString ApiService::getQueryUrl() const {
+    return queryUrl;
+}
+
+void ApiService::reloadApiUrls() {
+    loadApiUrls();
+    qDebug() << "API URLs reloaded";
 }
 
 void ApiService::submitTask(const QString &apiKey, const QString &prompt) {
-    QNetworkRequest request{QUrl(Config::SUBMIT_URL)};
+    QNetworkRequest request{QUrl(submitUrl)};
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
     request.setRawHeader("Authorization", ("Bearer " + apiKey).toUtf8());
 
@@ -61,7 +102,7 @@ void ApiService::submitTask(const QString &apiKey, const QString &prompt) {
 
 void ApiService::pollTask(const QString &apiKey, const QString &taskId) {
     // 使用查询参数而不是路径参数
-    QString urlStr = Config::QUERY_URL + "?task_id=" + taskId;
+    QString urlStr = queryUrl + "?task_id=" + taskId;
 
     QNetworkRequest request{QUrl(urlStr)};
     request.setRawHeader("Authorization", ("Bearer " + apiKey).toUtf8());
@@ -121,7 +162,7 @@ void ApiService::pollTask(const QString &apiKey, const QString &taskId) {
 
 void ApiService::pollAllTasks(const QString &apiKey) {
     // 批量查询所有任务，不需要 task_id 参数
-    QString urlStr = Config::QUERY_URL;
+    QString urlStr = queryUrl;
 
     QNetworkRequest request{QUrl(urlStr)};
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");

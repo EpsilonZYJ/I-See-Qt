@@ -35,6 +35,7 @@ set(SOURCES
         src/ui/SetupDialog.h src/ui/SetupDialog.cpp
         src/ui/MainWindow.h src/ui/MainWindow.cpp
         src/ui/TaskHistoryWindow.h src/ui/TaskHistoryWindow.cpp
+        src/ui/SettingsDialog.h src/ui/SettingsDialog.cpp
         resources/ui.qrc
         src/const/QtHeaders.h
 )

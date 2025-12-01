@@ -22,6 +22,9 @@ public:
     // 获取数据库服务
     TaskDatabaseService* getTaskDatabaseService() const;
 
+    // 获取 API 服务
+    ApiService* getApiService() const;
+
 signals:
     // 通知 UI 更新的信号
     void statusChanged(const QString &msg);
