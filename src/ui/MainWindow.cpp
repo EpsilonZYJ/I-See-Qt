@@ -235,8 +235,16 @@ void MainWindow::setupUi() {
     rightLayout->addWidget(parametersBox);
     rightLayout->addWidget(new QLabel("Prompt:"));
     rightLayout->addWidget(promptEdit);
-    rightLayout->addWidget(generateBtn);
-    rightLayout->addWidget(taskHistoryBtn);
+
+    QHBoxLayout *buttonsLayout = new QHBoxLayout;
+    buttonsLayout->setSpacing(10);
+    buttonsLayout->setContentsMargins(0, 0, 0, 0);
+    generateBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    taskHistoryBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    buttonsLayout->addWidget(generateBtn);
+    buttonsLayout->addWidget(taskHistoryBtn);
+    rightLayout->addLayout(buttonsLayout);
+
     rightLayout->addWidget(progressBar);
     rightLayout->addWidget(statusLabel);
     rightLayout->addWidget(videoWidget, 1); // 1 表示占据剩余空间
