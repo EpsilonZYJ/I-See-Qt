@@ -41,6 +41,10 @@
 #include <QAbstractItemView>
 #include <QScrollArea>
 #include <QCheckBox>
+#include <QComboBox>
+
+// Qt GUI
+#include <QPixmap>
 
 // Qt Network
 #include <QNetworkAccessManager>

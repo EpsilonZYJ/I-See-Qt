@@ -164,6 +164,57 @@ void MainWindow::setupUi() {
     settingsLayout->addLayout(keyLayout);
     settingsBox->setLayout(settingsLayout);
 
+    // 1.25 模式选择区域
+    QGroupBox *modeBox = new QGroupBox("生成模式");
+    QHBoxLayout *modeLayout = new QHBoxLayout;
+
+    modeSelector = new QComboBox;
+    modeSelector->addItem("文生视频 (Text-to-Video)");
+    modeSelector->addItem("图生视频 (Image-to-Video)");
+    modeLayout->addWidget(new QLabel("模式:"));
+    modeLayout->addWidget(modeSelector);
+    modeLayout->addStretch();
+
+    modeBox->setLayout(modeLayout);
+
+    connect(modeSelector, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::onModeChanged);
+
+    // 1.3 图片输入区域（初始隐藏）
+    imageInputWidget = new QWidget;
+    QVBoxLayout *imageInputLayout = new QVBoxLayout(imageInputWidget);
+
+    // 首帧图片
+    QHBoxLayout *firstImageLayout = new QHBoxLayout;
+    selectImageBtn = new QPushButton("选择首帧图片");
+    selectImageBtn->setMaximumWidth(120);
+    imagePreviewLabel = new QLabel("未选择图片");
+    imagePreviewLabel->setStyleSheet("border: 1px solid #ccc; padding: 5px;");
+    imagePreviewLabel->setAlignment(Qt::AlignCenter);
+    imagePreviewLabel->setMaximumHeight(80);
+    imagePreviewLabel->setScaledContents(false);
+    firstImageLayout->addWidget(selectImageBtn);
+    firstImageLayout->addWidget(imagePreviewLabel, 1);
+
+    // 尾帧图片（可选）
+    QHBoxLayout *lastImageLayout = new QHBoxLayout;
+    selectLastImageBtn = new QPushButton("选择尾帧图片(可选)");
+    selectLastImageBtn->setMaximumWidth(120);
+    lastImagePreviewLabel = new QLabel("未选择图片");
+    lastImagePreviewLabel->setStyleSheet("border: 1px solid #ccc; padding: 5px;");
+    lastImagePreviewLabel->setAlignment(Qt::AlignCenter);
+    lastImagePreviewLabel->setMaximumHeight(80);
+    lastImagePreviewLabel->setScaledContents(false);
+    lastImageLayout->addWidget(selectLastImageBtn);
+    lastImageLayout->addWidget(lastImagePreviewLabel, 1);
+
+    imageInputLayout->addLayout(firstImageLayout);
+    imageInputLayout->addLayout(lastImageLayout);
+
+    imageInputWidget->setVisible(false);  // 初始隐藏
+
+    connect(selectImageBtn, &QPushButton::clicked, this, &MainWindow::onSelectImage);
+    connect(selectLastImageBtn, &QPushButton::clicked, this, &MainWindow::onSelectLastImage);
+
     // 1.5 参数配置区域
     QGroupBox *parametersBox = new QGroupBox("参数配置");
     QVBoxLayout *parametersBoxLayout = new QVBoxLayout;
@@ -232,6 +283,8 @@ void MainWindow::setupUi() {
 
     // 组装右侧
     rightLayout->addWidget(settingsBox);
+    rightLayout->addWidget(modeBox);
+    rightLayout->addWidget(imageInputWidget);
     rightLayout->addWidget(parametersBox);
     rightLayout->addWidget(new QLabel("Prompt:"));
     rightLayout->addWidget(promptEdit);
@@ -268,17 +321,65 @@ void MainWindow::onGenerateClicked() {
     }
 
     QString prompt = promptEdit->toPlainText();
-    if(prompt.isEmpty()) {
-        QMessageBox::warning(this, "提示", "请输入提示词");
-        return;
+
+    // 检查是文生视频还是图生视频
+    bool isImageToVideo = (modeSelector->currentIndex() == 1);
+
+    if (isImageToVideo) {
+        // 图生视频模式
+        if (firstImagePath.isEmpty()) {
+            QMessageBox::warning(this, "提示", "请先选择首帧图片");
+            return;
+        }
+
+        // Prompt 在图生视频中是可选的，但建议提供
+        if (prompt.isEmpty()) {
+            QMessageBox::StandardButton reply = QMessageBox::question(
+                this,
+                "提示",
+                "未输入提示词，是否继续？\n（建议提供提示词以获得更好的生成效果）",
+                QMessageBox::Yes | QMessageBox::No
+            );
+
+            if (reply == QMessageBox::No) {
+                return;
+            }
+        }
+
+        // 转换图片为 Base64
+        QString imageBase64 = imageToBase64(firstImagePath);
+        if (imageBase64.isEmpty()) {
+            QMessageBox::warning(this, "错误", "无法读取首帧图片");
+            return;
+        }
+
+        QString lastImageBase64;
+        if (!lastImagePath.isEmpty()) {
+            lastImageBase64 = imageToBase64(lastImagePath);
+            if (lastImageBase64.isEmpty()) {
+                QMessageBox::warning(this, "错误", "无法读取尾帧图片");
+                return;
+            }
+        }
+
+        generateBtn->setEnabled(false);
+        statusLabel->setText("正在提交图生视频任务...");
+        viewModel->startImageToVideoGeneration(key, prompt, imageBase64, lastImageBase64);
+
+    } else {
+        // 文生视频模式
+        if(prompt.isEmpty()) {
+            QMessageBox::warning(this, "提示", "请输入提示词");
+            return;
+        }
+
+        // 获取用户配置的参数
+        QMap<QString, QString> params = getParameters();
+
+        generateBtn->setEnabled(false);
+        statusLabel->setText("正在提交文生视频任务...");
+        viewModel->startGeneration(key, prompt, params);
     }
-
-
-    // 获取用户配置的参数
-    QMap<QString, QString> params = getParameters();
-
-    generateBtn->setEnabled(false);
-    viewModel->startGeneration(key, prompt, params);
 }
 
 void MainWindow::onVideoReady(const QString &path) {
@@ -454,3 +555,98 @@ QString MainWindow::extractTaskIdFromFileName(const QString &fileName) const {
 
     return "";
 }
+
+void MainWindow::onModeChanged(int index) {
+    // 0: 文生视频, 1: 图生视频
+    bool isImageToVideo = (index == 1);
+
+    // 显示/隐藏图片输入区域
+    imageInputWidget->setVisible(isImageToVideo);
+
+    // 更新按钮文本
+    if (isImageToVideo) {
+        generateBtn->setText("生成视频（图生视频）");
+        promptEdit->setPlaceholderText("请输入提示词（可选）...");
+    } else {
+        generateBtn->setText("生成视频");
+        promptEdit->setPlaceholderText("请输入提示词...");
+    }
+
+    qDebug() << "Mode changed to:" << (isImageToVideo ? "Image-to-Video" : "Text-to-Video");
+}
+
+void MainWindow::onSelectImage() {
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "选择首帧图片",
+        QDir::homePath(),
+        "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp *.tiff *.gif);;所有文件 (*.*)"
+    );
+
+    if (!fileName.isEmpty()) {
+        firstImagePath = fileName;
+        updateImagePreview(imagePreviewLabel, fileName);
+        qDebug() << "Selected first image:" << fileName;
+    }
+}
+
+void MainWindow::onSelectLastImage() {
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "选择尾帧图片（可选）",
+        QDir::homePath(),
+        "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp *.tiff *.gif);;所有文件 (*.*)"
+    );
+
+    if (!fileName.isEmpty()) {
+        lastImagePath = fileName;
+        updateImagePreview(lastImagePreviewLabel, fileName);
+        qDebug() << "Selected last image:" << fileName;
+    }
+}
+
+QString MainWindow::imageToBase64(const QString &imagePath) const {
+    QFile file(imagePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open image file:" << imagePath;
+        return "";
+    }
+
+    QByteArray imageData = file.readAll();
+    file.close();
+
+    // 获取文件扩展名以确定 MIME 类型
+    QString extension = QFileInfo(imagePath).suffix().toLower();
+    QString mimeType = "image/jpeg";  // 默认
+
+    if (extension == "png") mimeType = "image/png";
+    else if (extension == "webp") mimeType = "image/webp";
+    else if (extension == "bmp") mimeType = "image/bmp";
+    else if (extension == "tiff" || extension == "tif") mimeType = "image/tiff";
+    else if (extension == "gif") mimeType = "image/gif";
+
+    // 返回 Base64 格式：data:image/jpeg;base64,<base64-data>
+    QString base64 = "data:" + mimeType + ";base64," + imageData.toBase64();
+
+    qDebug() << "Image converted to base64, size:" << base64.length() << "chars";
+    return base64;
+}
+
+void MainWindow::updateImagePreview(QLabel *label, const QString &imagePath) {
+    QPixmap pixmap(imagePath);
+    if (pixmap.isNull()) {
+        label->setText("无法加载图片");
+        return;
+    }
+
+    // 缩放图片以适应预览区域
+    QPixmap scaledPixmap = pixmap.scaled(
+        label->maximumWidth() > 0 ? label->maximumWidth() : 300,
+        label->maximumHeight(),
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation
+    );
+
+    label->setPixmap(scaledPixmap);
+}
+

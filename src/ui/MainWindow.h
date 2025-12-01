@@ -20,10 +20,15 @@ private slots:
     void onShowTaskHistory();
     void onShowSettings();
     void onSettingsChanged();
+    void onModeChanged(int index);  // 模式切换
+    void onSelectImage();  // 选择首帧图片
+    void onSelectLastImage();  // 选择尾帧图片
 
 private:
     void setupUi(); // setupUi 声明
     QString extractTaskIdFromFileName(const QString &fileName) const; // 从文件名提取 task_id
+    QString imageToBase64(const QString &imagePath) const;  // 将图片转换为 Base64
+    void updateImagePreview(QLabel *label, const QString &imagePath);  // 更新图片预览
 
     MainViewModel *viewModel;
     TaskHistoryWindow *taskHistoryWindow;
@@ -41,6 +46,16 @@ private:
     QVideoWidget *videoWidget;
     QMediaPlayer *player;
     QAudioOutput *audioOutput;
+
+    // 图生视频相关
+    QComboBox *modeSelector;  // 模式选择：文生视频/图生视频
+    QWidget *imageInputWidget;  // 图片输入区域容器
+    QPushButton *selectImageBtn;  // 选择首帧图片
+    QPushButton *selectLastImageBtn;  // 选择尾帧图片（可选）
+    QLabel *imagePreviewLabel;  // 首帧图片预览
+    QLabel *lastImagePreviewLabel;  // 尾帧图片预览
+    QString firstImagePath;  // 首帧图片路径
+    QString lastImagePath;  // 尾帧图片路径
 
     // 参数配置相关
     QWidget *parametersWidget;

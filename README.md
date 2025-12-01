@@ -22,7 +22,8 @@ I-See Video Generator Client is a modern, cross-platform desktop application bui
 
 ### 🎯 Key Highlights
 
-- 🎬 **AI Video Generation**: Submit text-to-video generation tasks with customizable parameters
+- 🎬 **AI Video Generation**: Submit text-to-video and image-to-video generation tasks with customizable parameters
+- 🖼️ **Image-to-Video**: Generate videos from static images with optional start and end frames
 - 📊 **Real-time Monitoring**: Automatic polling and progress tracking for video generation tasks
 - 💾 **Smart Storage**: SQLite-based persistent storage with automatic video downloading
 - 🔍 **Task History**: Query and manage all historical tasks with detailed information
@@ -34,7 +35,12 @@ I-See Video Generator Client is a modern, cross-platform desktop application bui
 ### Core Features
 
 #### 🎨 Video Generation
-- Submit text-to-video generation tasks with custom prompts
+- **Text-to-Video**: Generate videos from text prompts with custom parameters
+- **Image-to-Video**: Transform static images into dynamic videos
+  - Support for start frame (required) and end frame (optional)
+  - Multiple image format support: JPEG, PNG, WebP, BMP, TIFF, GIF
+  - Automatic Base64 encoding for API compatibility
+  - Image preview before submission
 - Configurable parameters (resolution, aspect ratio, duration, etc.)
 - Real-time status updates with progress indicators
 - Automatic retry mechanism for failed requests
@@ -169,7 +175,18 @@ ninja
    - The key is securely stored for future sessions
 
 3. **Generate a Video**
+   
+   **Text-to-Video:**
+   - Select "Text-to-Video" mode
    - Enter your prompt in the text box
+   - Click "Generate Video" button
+   - Watch real-time progress updates
+   
+   **Image-to-Video:**
+   - Select "Image-to-Video" mode
+   - Click "Select First Frame" to choose your starting image
+   - (Optional) Click "Select Last Frame" for end frame
+   - Enter an optional prompt for better results
    - Click "Generate Video" button
    - Watch real-time progress updates
 
@@ -183,12 +200,25 @@ ninja
 The application uses the following API endpoints:
 
 ```cpp
-// Video Generation
+// Text-to-Video Generation
 POST https://api.ppinfra.com/v3/async/seedance-v1-pro-t2v
+
+// Image-to-Video Generation
+POST https://api.ppinfra.com/v3/async/seedance-v1-pro-i2v
 
 // Task Query
 GET https://api.ppinfra.com/v3/async/task-result?task_id={taskId}
 ```
+
+#### Image-to-Video Requirements
+
+- **Supported Formats**: JPEG, PNG, WebP, BMP, TIFF, GIF
+- **File Size**: Maximum 30MB per image
+- **Dimensions**: 
+  - Short edge: minimum 300 pixels
+  - Long edge: maximum 6000 pixels
+  - Aspect ratio: 0.4 to 2.5
+- **Input Methods**: URL or Base64 encoding (auto-handled by the client)
 
 ### Database Location
 
