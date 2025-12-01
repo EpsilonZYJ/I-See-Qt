@@ -202,52 +202,6 @@ GET https://api.ppinfra.com/v3/async/task-result?task_id={taskId}
 - **Windows**: `%USERPROFILE%\Videos\VideoGenClient\`
 - **Linux**: `~/Videos/VideoGenClient/`
 
-## 🏗️ Architecture
-
-### Project Structure
-
-```
-I-See-Qt/
-├── src/
-│   ├── main.cpp                    # Application entry point
-│   ├── const/
-│   │   ├── AppConfig.h            # Configuration constants
-│   │   └── QtHeaders.h            # Centralized Qt headers
-│   ├── models/
-│   │   └── TaskItem.h             # Task data model
-│   ├── services/
-│   │   ├── ApiService.*           # API communication layer
-│   │   ├── HistoryService.*       # Local history management
-│   │   └── TaskDatabaseService.*  # SQLite database operations
-│   ├── viewmodel/
-│   │   └── MainViewModel.*        # MVVM pattern view model
-│   ├── ui/
-│   │   ├── MainWindow.*           # Main application window
-│   │   ├── TaskHistoryWindow.*    # Task history browser
-│   │   └── SetupDialog.*          # Configuration dialog
-│   └── utils/                     # Utility functions
-├── resources/
-│   └── ui.qrc                     # Qt resource file
-├── CMakeLists.txt                 # CMake build configuration
-└── README.md                      # This file
-```
-
-### Technology Stack
-
-- **GUI Framework**: Qt 6.x (Widgets)
-- **Networking**: Qt Network (QNetworkAccessManager)
-- **Database**: SQLite via Qt SQL module
-- **Multimedia**: Qt Multimedia (Video playback)
-- **Build System**: CMake 3.16+
-- **Language**: C++23
-
-### Design Patterns
-
-- **MVVM** (Model-View-ViewModel): Clean separation of UI and business logic
-- **Observer Pattern**: Signal-slot mechanism for event handling
-- **Service Layer**: Abstracted API and database operations
-- **Singleton Pattern**: Configuration and service management
-
 ## 📊 Features Comparison
 
 | Feature | I-See Client | Web Interface | CLI Tools |
@@ -291,43 +245,6 @@ If you find a bug, please open an issue with:
 - System information (OS, Qt version, etc.)
 - Screenshots if applicable
 
-## 📝 Documentation
-
-Additional documentation is available in the project root:
-
-- [API Update Guide](API_UPDATE_GUIDE.md) - API integration details
-- [Task History Guide](TASK_HISTORY_GUIDE.md) - Task management features
-- [Auto Download Feature](AUTO_DOWNLOAD_FEATURE.md) - Video download mechanism
-- [Task ID Query Feature](TASK_ID_QUERY_FEATURE.md) - Query by task ID
-- [Double Click Play Feature](DOUBLE_CLICK_PLAY_FEATURE.md) - Video playback
-
-## 🐛 Known Issues
-
-- [ ] Large video files (>500MB) may cause memory issues on 32-bit systems
-- [ ] Network interruption during download requires manual retry
-- [ ] Task history window may lag with 1000+ tasks (optimization in progress)
-
-## 🗺️ Roadmap
-
-### Version 1.1 (Planned)
-- [ ] Batch video generation
-- [ ] Advanced filtering and search in task history
-- [ ] Export task history to CSV/JSON
-- [ ] Dark mode support
-- [ ] Video thumbnail preview
-
-### Version 1.2 (Planned)
-- [ ] Advanced video editing capabilities
-- [ ] Cloud sync for task history
-- [ ] Multi-language support (Chinese, English, Japanese)
-- [ ] Batch task operations
-
-### Version 2.0 (Planned)
-- [ ] Plugin system for custom video processors
-- [ ] REST API for automation
-- [ ] Collaborative features
-- [ ] Performance optimizations for large-scale usage
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -335,16 +252,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with [Qt Framework](https://www.qt.io/)
-- Video generation powered by [Seedance AI API](https://api.ppinfra.com/)
-- Icons from [Qt Resources](https://doc.qt.io/qt-6/resources.html)
-- Inspired by modern desktop application design principles
-
-## 📧 Contact
-
-- **Author**: Zhou Yujie (EpsilonZYJ)
-- **Email**: your.email@example.com
-- **GitHub**: [@yourusername](https://github.com/yourusername)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/I-See-Qt/issues)
 
 ## ⭐ Star History
 
