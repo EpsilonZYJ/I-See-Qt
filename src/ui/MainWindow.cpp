@@ -3,6 +3,8 @@
 #include "SettingsDialog.h"
 #include "const/QtHeaders.h"
 #include "const/AppConfig.h"
+#include "services/TaskDatabaseService.h"
+#include "models/TaskItem.h"
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow(nullptr), settingsDialog(nullptr) {
     viewModel = new MainViewModel(this);
@@ -42,8 +44,70 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow
         int row = historyList->row(item);
         auto items = viewModel->getHistory();
         if(row >= 0 && row < items.size()) {
-            player->setSource(QUrl::fromLocalFile(items[row].filePath));
-            player->play();
+            QString filePath = items[row].filePath;
+
+            // 检查视频文件是否存在
+            if (QFile::exists(filePath)) {
+                // 文件存在，直接播放
+                player->setSource(QUrl::fromLocalFile(filePath));
+                player->play();
+            } else {
+                // 文件不存在，尝试重新下载
+                statusLabel->setText("视频文件不存在，正在重新下载...");
+
+                // 从文件路径提取 task_id（格式：taskId_timestamp.mp4）
+                QFileInfo fileInfo(filePath);
+                QString fileName = fileInfo.fileName();
+                QString taskId = extractTaskIdFromFileName(fileName);
+
+                if (!taskId.isEmpty()) {
+                    // 从数据库查找任务
+                    TaskDatabaseService *dbService = viewModel->getTaskDatabaseService();
+                    TaskItem task = dbService->getTask(taskId);
+
+                    if (!task.taskId.isEmpty() && !task.videoUrl.isEmpty()) {
+                        // 找到任务且有视频 URL，重新下载
+                        qDebug() << "重新下载视频，Task ID:" << taskId;
+                        statusLabel->setText(QString("正在重新下载视频... (Task ID: %1)").arg(taskId));
+
+                        // 使用 ApiService 下载
+                        ApiService *downloadService = new ApiService(this);
+                        connect(downloadService, &ApiService::videoDownloaded, this, [this, taskId, filePath, downloadService](const QString &tempPath) {
+                            // 下载完成，移动到原位置
+                            QFile::remove(filePath); // 删除可能存在的旧文件
+                            if (QFile::rename(tempPath, filePath)) {
+                                statusLabel->setText("视频下载完成");
+                                player->setSource(QUrl::fromLocalFile(filePath));
+                                player->play();
+
+                                // 更新数据库
+                                TaskDatabaseService *dbService = viewModel->getTaskDatabaseService();
+                                TaskItem task = dbService->getTask(taskId);
+                                task.localFilePath = filePath;
+                                task.updateTime = QDateTime::currentDateTime();
+                                dbService->updateTask(task);
+                            } else {
+                                statusLabel->setText("视频文件移动失败");
+                            }
+                            downloadService->deleteLater();
+                        });
+
+                        connect(downloadService, &ApiService::errorOccurred, this, [this, downloadService](const QString &error) {
+                            statusLabel->setText("视频下载失败: " + error);
+                            downloadService->deleteLater();
+                        });
+
+                        downloadService->downloadVideo(task.videoUrl);
+                    } else {
+                        QMessageBox::warning(this, "提示",
+                            QString("无法重新下载视频\nTask ID: %1\n请在任务历史中重新查询该任务").arg(taskId));
+                        statusLabel->setText("视频文件不存在");
+                    }
+                } else {
+                    QMessageBox::warning(this, "提示", "无法从文件名提取 Task ID，无法重新下载");
+                    statusLabel->setText("视频文件不存在");
+                }
+            }
         }
     });
 
@@ -364,4 +428,21 @@ void MainWindow::onSettingsChanged() {
     statusLabel->setText("设置已更新并立即生效");
 
     qDebug() << "Settings changed and reloaded";
+}
+
+QString MainWindow::extractTaskIdFromFileName(const QString &fileName) const {
+    // 视频文件名格式：taskId_timestamp.mp4
+    // 提取 taskId（第一个下划线之前的部分）
+    int underscorePos = fileName.indexOf('_');
+    if (underscorePos > 0) {
+        return fileName.left(underscorePos);
+    }
+
+    // 如果没有下划线，尝试提取 .mp4 之前的部分作为 taskId
+    int dotPos = fileName.lastIndexOf('.');
+    if (dotPos > 0) {
+        return fileName.left(dotPos);
+    }
+
+    return "";
 }

@@ -23,6 +23,8 @@ private slots:
 
 private:
     void setupUi(); // setupUi 声明
+    QString extractTaskIdFromFileName(const QString &fileName) const; // 从文件名提取 task_id
+
     MainViewModel *viewModel;
     TaskHistoryWindow *taskHistoryWindow;
     SettingsDialog *settingsDialog;
