@@ -476,7 +476,7 @@ void TaskHistoryWindow::downloadVideoForTask(const QString &taskId, const QStrin
     }
 
     // 创建保存目录
-    QString saveDir = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/VideoGenClient";
+    QString saveDir = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + "/I See";
     QDir dir;
     if (!dir.exists(saveDir)) {
         dir.mkpath(saveDir);

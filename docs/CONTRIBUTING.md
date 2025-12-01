@@ -135,7 +135,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
    ```bash
    cd build
    ninja
-   ./VideoGenClient  # Manual testing
+   ./I-See  # Manual testing
    ```
 
 5. **Commit your changes**

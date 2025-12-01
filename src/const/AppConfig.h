@@ -4,8 +4,8 @@
 #include "QtHeaders.h"
 
 namespace Config {
-    const QString ORG_NAME = "MyStudentOrg";
-    const QString APP_NAME = "VideoGenClient";
+    const QString ORG_NAME = "ISeeOrg";
+    const QString APP_NAME = "I See";
 
     // API Endpoints
     const QString SUBMIT_URL = "https://api.ppinfra.com/v3/async/seedance-v1-pro-t2v";

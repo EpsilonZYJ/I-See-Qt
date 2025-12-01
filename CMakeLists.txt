@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(VideoGenClient VERSION 1.0 LANGUAGES CXX)
+project(I-See VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,15 +43,15 @@ set(SOURCES
 # 生成可执行文件
 if(APPLE)
     # macOS Bundle 设置
-    set(MACOSX_BUNDLE_BUNDLE_NAME "ISee")
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.EpsilonZYJ.ISee")
-    add_executable(VideoGenClient MACOSX_BUNDLE ${SOURCES})
+    set(MACOSX_BUNDLE_BUNDLE_NAME "I See")
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.ISeeOrg.ISee")
+    add_executable(I-See MACOSX_BUNDLE ${SOURCES})
 else()
-    add_executable(VideoGenClient ${SOURCES})
+    add_executable(I-See ${SOURCES})
 endif()
 
 # 链接 Qt 库
-target_link_libraries(VideoGenClient PRIVATE
+target_link_libraries(I-See PRIVATE
         Qt6::Widgets
         Qt6::Network
         Qt6::Multimedia

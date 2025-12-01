@@ -76,7 +76,7 @@ I-See 视频生成客户端是一款使用 Qt6 构建的现代化跨平台桌面
 
 #### 🗄️ 数据管理
 - **数据库架构**：优化的 SQLite，带索引查询
-- **文件组织**：视频存储在 `~/Movies/VideoGenClient/`
+- **文件组织**：视频存储在 `~/Movies/I See/`
 - **数据完整性**：持久化存储，自动任务跟踪
 
 ## 🚀 安装说明
@@ -110,7 +110,7 @@ cmake -G Ninja -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@6 ..
 ninja
 
 # 运行应用程序
-./VideoGenClient.app/Contents/MacOS/VideoGenClient
+./I-See.app/Contents/MacOS/I-See
 ```
 
 #### Windows
@@ -133,7 +133,7 @@ cmake -G "Visual Studio 17 2022" -DCMAKE_PREFIX_PATH="C:/Qt/6.x/msvc2022_64" ..
 cmake --build . --config Release
 
 # 运行
-Release\VideoGenClient.exe
+Release\I-See.exe
 ```
 
 #### Linux
@@ -154,7 +154,7 @@ cmake -G Ninja ..
 ninja
 
 # 运行
-./VideoGenClient
+./I-See
 ```
 
 ## 📚 使用指南
@@ -163,7 +163,7 @@ ninja
 
 1. **启动应用程序**
    ```bash
-   ./VideoGenClient
+   ./I-See
    ```
 
 2. **配置 API Key**
@@ -227,14 +227,14 @@ GET https://api.ppinfra.com/v3/async/task-result?task_id={taskId}
 ### 数据存储位置
 
 #### 数据库位置
-- **macOS**: `~/Library/Application Support/VideoGenClient/tasks.db`
-- **Windows**: `%APPDATA%/VideoGenClient/tasks.db`
-- **Linux**: `~/.local/share/VideoGenClient/tasks.db`
+- **macOS**: `~/Library/Application Support/ISeeOrg/I See/tasks.db`
+- **Windows**: `%APPDATA%/ISeeOrg/I See/tasks.db`
+- **Linux**: `~/.local/share/ISeeOrg/I See/tasks.db`
 
 #### 视频存储位置
-- **macOS**: `~/Movies/VideoGenClient/`
-- **Windows**: `%USERPROFILE%\Videos\VideoGenClient\`
-- **Linux**: `~/Videos/VideoGenClient/`
+- **macOS**: `~/Movies/I See/`
+- **Windows**: `%USERPROFILE%\Videos\I See\`
+- **Linux**: `~/Videos/I See/`
 
 ## 📊 功能对比
 
