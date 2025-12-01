@@ -35,5 +35,22 @@ private:
     QVideoWidget *videoWidget;
     QMediaPlayer *player;
     QAudioOutput *audioOutput;
+
+    // 参数配置相关
+    QWidget *parametersWidget;
+    QVBoxLayout *parametersLayout;
+    QPushButton *addParameterBtn;
+
+    struct ParameterRow {
+        QLineEdit *nameEdit;
+        QLineEdit *valueEdit;
+        QPushButton *removeBtn;
+        QHBoxLayout *layout;
+    };
+    QList<ParameterRow> parameterRows;
+
+    void addParameterRow(const QString &name = "", const QString &value = "");
+    void removeParameterRow(int index);
+    QMap<QString, QString> getParameters() const;
 };
 #endif

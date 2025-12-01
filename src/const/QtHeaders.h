@@ -39,6 +39,7 @@
 #include <QHeaderView>
 #include <QSplitter>
 #include <QAbstractItemView>
+#include <QScrollArea>
 
 // Qt Network
 #include <QNetworkAccessManager>

@@ -31,6 +31,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow
     // 2. UI -> UI/ViewModel
     connect(generateBtn, &QPushButton::clicked, this, &MainWindow::onGenerateClicked);
     connect(taskHistoryBtn, &QPushButton::clicked, this, &MainWindow::onShowTaskHistory);
+    connect(addParameterBtn, &QPushButton::clicked, this, [this]() {
+        addParameterRow("", "");
+    });
 
     // 列表点击播放
     connect(historyList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item){
@@ -79,6 +82,39 @@ void MainWindow::setupUi() {
     settingsLayout->addWidget(apiKeyEdit);
     settingsBox->setLayout(settingsLayout);
 
+    // 1.5 参数配置区域
+    QGroupBox *parametersBox = new QGroupBox("参数配置");
+    QVBoxLayout *parametersBoxLayout = new QVBoxLayout;
+
+    // 参数列表容器
+    QScrollArea *parametersScroll = new QScrollArea;
+    parametersScroll->setWidgetResizable(true);
+    parametersScroll->setMaximumHeight(200);
+
+    parametersWidget = new QWidget;
+    parametersLayout = new QVBoxLayout(parametersWidget);
+    parametersLayout->setSpacing(5);
+    parametersLayout->addStretch();
+
+    parametersScroll->setWidget(parametersWidget);
+
+    // 添加参数按钮
+    addParameterBtn = new QPushButton("+ 添加参数");
+    addParameterBtn->setMaximumWidth(120);
+
+    parametersBoxLayout->addWidget(parametersScroll);
+    parametersBoxLayout->addWidget(addParameterBtn);
+    parametersBox->setLayout(parametersBoxLayout);
+
+    // 添加默认参数
+    addParameterRow("width", "1280");
+    addParameterRow("height", "720");
+    addParameterRow("resolution", "1080p");
+    addParameterRow("aspect_ratio", "16:9");
+    addParameterRow("duration", "5");
+    addParameterRow("camera_fixed", "false");
+    addParameterRow("seed", "123");
+
     // 2. 输入区域
     promptEdit = new QTextEdit;
     promptEdit->setPlaceholderText("请输入提示词...");
@@ -114,6 +150,7 @@ void MainWindow::setupUi() {
 
     // 组装右侧
     rightLayout->addWidget(settingsBox);
+    rightLayout->addWidget(parametersBox);
     rightLayout->addWidget(new QLabel("Prompt:"));
     rightLayout->addWidget(promptEdit);
     rightLayout->addWidget(generateBtn);
@@ -137,12 +174,21 @@ void MainWindow::onGenerateClicked() {
         return;
     }
 
+    QString prompt = promptEdit->toPlainText();
+    if(prompt.isEmpty()) {
+        QMessageBox::warning(this, "提示", "请输入提示词");
+        return;
+    }
+
     // 保存 Key
     QSettings s(Config::ORG_NAME, Config::APP_NAME);
     s.setValue(Config::KEY_API_TOKEN, key);
 
+    // 获取用户配置的参数
+    QMap<QString, QString> params = getParameters();
+
     generateBtn->setEnabled(false);
-    viewModel->startGeneration(key, promptEdit->toPlainText());
+    viewModel->startGeneration(key, prompt, params);
 }
 
 void MainWindow::onVideoReady(const QString &path) {
@@ -178,3 +224,102 @@ void MainWindow::onShowTaskHistory() {
     taskHistoryWindow->activateWindow();
     taskHistoryWindow->refreshTasks();
 }
+
+void MainWindow::addParameterRow(const QString &name, const QString &value) {
+    ParameterRow row;
+
+    // 创建水平布局
+    row.layout = new QHBoxLayout;
+    row.layout->setSpacing(5);
+
+    // 参数名输入框
+    row.nameEdit = new QLineEdit;
+    row.nameEdit->setPlaceholderText("参数名 (如: width)");
+    row.nameEdit->setText(name);
+    row.nameEdit->setMaximumWidth(150);
+
+    // 参数值输入框
+    row.valueEdit = new QLineEdit;
+    row.valueEdit->setPlaceholderText("参数值 (如: 1280)");
+    row.valueEdit->setText(value);
+    row.valueEdit->setMaximumWidth(150);
+
+    // 删除按钮
+    row.removeBtn = new QPushButton("×");
+    row.removeBtn->setMaximumWidth(30);
+    row.removeBtn->setStyleSheet("QPushButton { color: red; font-weight: bold; }");
+
+    // 添加到布局
+    row.layout->addWidget(row.nameEdit);
+    row.layout->addWidget(new QLabel("="));
+    row.layout->addWidget(row.valueEdit);
+    row.layout->addWidget(row.removeBtn);
+    row.layout->addStretch();
+
+    // 保存到列表
+    int index = parameterRows.size();
+    parameterRows.append(row);
+
+    // 连接删除按钮
+    connect(row.removeBtn, &QPushButton::clicked, this, [this, index]() {
+        removeParameterRow(index);
+    });
+
+    // 插入到布局中（在 stretch 之前）
+    parametersLayout->insertLayout(parametersLayout->count() - 1, row.layout);
+}
+
+void MainWindow::removeParameterRow(int index) {
+    if (index < 0 || index >= parameterRows.size()) {
+        return;
+    }
+
+    ParameterRow &row = parameterRows[index];
+
+    // 从布局中移除
+    parametersLayout->removeItem(row.layout);
+
+    // 删除所有控件
+    delete row.nameEdit;
+    delete row.valueEdit;
+    delete row.removeBtn;
+
+    // 删除布局中的 QLabel
+    while (row.layout->count() > 0) {
+        QLayoutItem *item = row.layout->takeAt(0);
+        if (item->widget()) {
+            delete item->widget();
+        }
+        delete item;
+    }
+
+    delete row.layout;
+
+    // 从列表中移除
+    parameterRows.removeAt(index);
+
+    // 重新连接剩余按钮的索引
+    for (int i = index; i < parameterRows.size(); ++i) {
+        ParameterRow &r = parameterRows[i];
+        disconnect(r.removeBtn, nullptr, nullptr, nullptr);
+        connect(r.removeBtn, &QPushButton::clicked, this, [this, i]() {
+            removeParameterRow(i);
+        });
+    }
+}
+
+QMap<QString, QString> MainWindow::getParameters() const {
+    QMap<QString, QString> params;
+
+    for (const ParameterRow &row : parameterRows) {
+        QString name = row.nameEdit->text().trimmed();
+        QString value = row.valueEdit->text().trimmed();
+
+        if (!name.isEmpty() && !value.isEmpty()) {
+            params[name] = value;
+        }
+    }
+
+    return params;
+}
+
