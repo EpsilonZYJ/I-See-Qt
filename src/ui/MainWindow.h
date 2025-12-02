@@ -36,7 +36,6 @@ private:
 
     // UI 指针
     QListWidget *historyList;
-    QLineEdit *apiKeyEdit;  // 保留用于显示，但不可编辑
     QTextEdit *promptEdit;
     QPushButton *generateBtn;
     QPushButton *taskHistoryBtn;
