@@ -100,6 +100,61 @@ void ApiService::submitTask(const QString &apiKey, const QString &prompt) {
     });
 }
 
+void ApiService::submitImageToVideoTask(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData) {
+    // 使用图生视频的 API 端点
+    QString i2vUrl = submitUrl;
+    // 如果当前是 t2v 端点，替换为 i2v
+    if (i2vUrl.contains("seedance-v1-pro-t2v")) {
+        i2vUrl.replace("seedance-v1-pro-t2v", "seedance-v1-pro-i2v");
+    }
+
+    QNetworkRequest request{QUrl(i2vUrl)};
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
+    request.setRawHeader("Authorization", ("Bearer " + apiKey).toUtf8());
+
+    QJsonObject json;
+    if (!prompt.isEmpty()) {
+        json["prompt"] = prompt;
+    }
+    json["image"] = imageData;  // 支持 URL 或 Base64
+
+    if (!lastImageData.isEmpty()) {
+        json["last_image"] = lastImageData;  // 可选的结束帧
+    }
+
+    json["resolution"] = "1080p";
+    json["aspect_ratio"] = "16:9";
+    json["camera_fixed"] = false;
+    json["seed"] = 123;
+    json["duration"] = 5;  // 5 或 10 秒
+
+    QByteArray jsonData = QJsonDocument(json).toJson(QJsonDocument::Compact);
+    qDebug() << "Submitting Image-to-Video JSON:" << QString::fromUtf8(jsonData).left(500) << "...";  // 限制日志长度
+
+    QNetworkReply *reply = manager->post(request, jsonData);
+    connect(reply, &QNetworkReply::finished, this, [=, this]() {
+        reply->deleteLater();
+        if (reply->error()) {
+            QByteArray responseData = reply->readAll();
+            QString errorDetails = QString::fromUtf8(responseData);
+            qDebug() << "HTTP Error:" << reply->error() << reply->errorString();
+            qDebug() << "Server Response:" << errorDetails;
+            emit errorOccurred("图生视频提交失败: " + reply->errorString() + "\n详情: " + errorDetails);
+            return;
+        }
+        QByteArray responseData = reply->readAll();
+        qDebug() << "Success Response:" << QString::fromUtf8(responseData);
+        QJsonObject resp = QJsonDocument::fromJson(responseData).object();
+        QString taskId;
+        if(resp.contains("task_id")) taskId = resp["task_id"].toString();
+        else if(resp.contains("id")) taskId = resp["id"].toString();
+        else if(resp.contains("data")) taskId = resp["data"].toObject()["id"].toString();
+
+        if(!taskId.isEmpty()) emit taskSubmitted(taskId);
+        else emit errorOccurred("未获取到 Task ID");
+    });
+}
+
 void ApiService::pollTask(const QString &apiKey, const QString &taskId) {
     // 使用查询参数而不是路径参数
     QString urlStr = queryUrl + "?task_id=" + taskId;

@@ -12,10 +12,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), taskHistoryWindow
     // 初始化 UI 布局
     setupUi();
 
-    // 加载配置中的 API Key
-    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
-    apiKeyEdit->setText(settings.value(Config::KEY_API_TOKEN).toString());
-
     // --- 信号与槽的绑定 ---
 
     // 1. ViewModel -> UI
@@ -133,52 +129,109 @@ void MainWindow::setupUi() {
 
     // --- 左侧：历史记录 ---
     historyList = new QListWidget;
-    historyList->setFixedWidth(220);
+    historyList->setMinimumWidth(200);
+    historyList->setMaximumWidth(300);
 
     // --- 右侧：控制区与预览 ---
     QWidget *rightWidget = new QWidget;
     QVBoxLayout *rightLayout = new QVBoxLayout(rightWidget);
 
-    // 1. 设置区域
-    QGroupBox *settingsBox = new QGroupBox("设置");
-    QVBoxLayout *settingsLayout = new QVBoxLayout;
+    // 1. 顶部工具栏（模式选择和设置按钮）
+    QHBoxLayout *topToolbar = new QHBoxLayout;
 
-    // API Key 显示（只读）
-    apiKeyEdit = new QLineEdit;
-    apiKeyEdit->setPlaceholderText("未设置 API Key");
-    apiKeyEdit->setEchoMode(QLineEdit::Password);
-    apiKeyEdit->setReadOnly(true);  // 设置为只读
-    apiKeyEdit->setStyleSheet("QLineEdit { background-color: #f0f0f0; }");
+    // 模式选择
+    QLabel *modeLabel = new QLabel("生成模式:");
+    modeSelector = new QComboBox;
+    modeSelector->addItem("文生视频 (Text-to-Video)");
+    modeSelector->addItem("图生视频 (Image-to-Video)");
+    modeSelector->setMinimumWidth(200);
 
-    QHBoxLayout *keyLayout = new QHBoxLayout;
-    keyLayout->addWidget(new QLabel("API Key:"));
-    keyLayout->addWidget(apiKeyEdit);
+    topToolbar->addWidget(modeLabel);
+    topToolbar->addWidget(modeSelector);
+    topToolbar->addStretch();
 
     // 设置按钮
     settingsBtn = new QPushButton("⚙ 设置");
-    settingsBtn->setMinimumHeight(35);
+    settingsBtn->setMinimumHeight(32);
     settingsBtn->setMaximumWidth(100);
     settingsBtn->setStyleSheet("QPushButton { font-weight: bold; }");
-    keyLayout->addWidget(settingsBtn);
+    topToolbar->addWidget(settingsBtn);
 
-    settingsLayout->addLayout(keyLayout);
-    settingsBox->setLayout(settingsLayout);
+    connect(modeSelector, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::onModeChanged);
 
-    // 1.5 参数配置区域
-    QGroupBox *parametersBox = new QGroupBox("参数配置");
-    QVBoxLayout *parametersBoxLayout = new QVBoxLayout;
+    // 2. 图片输入区域（初始隐藏）
+    imageInputWidget = new QWidget;
+    QVBoxLayout *imageInputLayout = new QVBoxLayout(imageInputWidget);
+    imageInputLayout->setContentsMargins(0, 5, 0, 5);
+
+    // 首帧图片
+    QHBoxLayout *firstImageLayout = new QHBoxLayout;
+    selectImageBtn = new QPushButton("选择首帧图片");
+    selectImageBtn->setMaximumWidth(120);
+    imagePreviewLabel = new QLabel("未选择图片");
+    imagePreviewLabel->setStyleSheet("border: 1px solid #ccc; padding: 5px;");
+    imagePreviewLabel->setAlignment(Qt::AlignCenter);
+    imagePreviewLabel->setMaximumHeight(80);
+    imagePreviewLabel->setScaledContents(false);
+    firstImageLayout->addWidget(selectImageBtn);
+    firstImageLayout->addWidget(imagePreviewLabel, 1);
+
+    // 尾帧图片（可选）
+    QHBoxLayout *lastImageLayout = new QHBoxLayout;
+    selectLastImageBtn = new QPushButton("选择尾帧图片(可选)");
+    selectLastImageBtn->setMaximumWidth(120);
+    lastImagePreviewLabel = new QLabel("未选择图片");
+    lastImagePreviewLabel->setStyleSheet("border: 1px solid #ccc; padding: 5px;");
+    lastImagePreviewLabel->setAlignment(Qt::AlignCenter);
+    lastImagePreviewLabel->setMaximumHeight(80);
+    lastImagePreviewLabel->setScaledContents(false);
+    lastImageLayout->addWidget(selectLastImageBtn);
+    lastImageLayout->addWidget(lastImagePreviewLabel, 1);
+
+    imageInputLayout->addLayout(firstImageLayout);
+    imageInputLayout->addLayout(lastImageLayout);
+
+    imageInputWidget->setVisible(false);  // 初始隐藏
+
+    connect(selectImageBtn, &QPushButton::clicked, this, &MainWindow::onSelectImage);
+    connect(selectLastImageBtn, &QPushButton::clicked, this, &MainWindow::onSelectLastImage);
+
+    // 3. Prompt 和参数并排布局
+    QHBoxLayout *contentLayout = new QHBoxLayout;
+    contentLayout->setSpacing(10);
+
+    // 3.1 左侧：Prompt 输入区域
+    QWidget *promptWidget = new QWidget;
+    QVBoxLayout *promptLayout = new QVBoxLayout(promptWidget);
+    promptLayout->setContentsMargins(0, 0, 0, 0);
+
+    promptLayout->addWidget(new QLabel("提示词 (Prompt):"));
+    promptEdit = new QTextEdit;
+    promptEdit->setPlaceholderText("请输入提示词...");
+    promptEdit->setMinimumHeight(150);
+    promptEdit->setAttribute(Qt::WA_InputMethodEnabled, true);
+    promptEdit->setInputMethodHints(Qt::ImhNone);
+    promptEdit->setFont(QFont("", 12));
+    promptLayout->addWidget(promptEdit);
+
+    // 3.2 右侧：参数配置区域
+    QWidget *parametersWidget = new QWidget;
+    QVBoxLayout *parametersBoxLayout = new QVBoxLayout(parametersWidget);
+    parametersBoxLayout->setContentsMargins(0, 0, 0, 0);
+
+    parametersBoxLayout->addWidget(new QLabel("参数配置:"));
 
     // 参数列表容器
     QScrollArea *parametersScroll = new QScrollArea;
     parametersScroll->setWidgetResizable(true);
-    parametersScroll->setMaximumHeight(200);
+    parametersScroll->setMinimumHeight(100);
 
-    parametersWidget = new QWidget;
-    parametersLayout = new QVBoxLayout(parametersWidget);
+    this->parametersWidget = new QWidget;
+    parametersLayout = new QVBoxLayout(this->parametersWidget);
     parametersLayout->setSpacing(5);
     parametersLayout->addStretch();
 
-    parametersScroll->setWidget(parametersWidget);
+    parametersScroll->setWidget(this->parametersWidget);
 
     // 添加参数按钮
     addParameterBtn = new QPushButton("+ 添加参数");
@@ -186,7 +239,6 @@ void MainWindow::setupUi() {
 
     parametersBoxLayout->addWidget(parametersScroll);
     parametersBoxLayout->addWidget(addParameterBtn);
-    parametersBox->setLayout(parametersBoxLayout);
 
     // 添加默认参数
     addParameterRow("width", "1280");
@@ -197,32 +249,36 @@ void MainWindow::setupUi() {
     addParameterRow("camera_fixed", "false");
     addParameterRow("seed", "123");
 
-    // 2. 输入区域
-    promptEdit = new QTextEdit;
-    promptEdit->setPlaceholderText("请输入提示词...");
-    promptEdit->setMaximumHeight(80);
-    promptEdit->setAttribute(Qt::WA_InputMethodEnabled, true);
-    promptEdit->setInputMethodHints(Qt::ImhNone);
-    promptEdit->setFont(QFont("", 12));
+    // 设置两侧宽度比例
+    contentLayout->addWidget(promptWidget, 1);  // Prompt 占 1 份
+    contentLayout->addWidget(parametersWidget, 1);  // 参数 占 1 份
 
-    // 3. 按钮与状态
+    // 4. 按钮与状态
     generateBtn = new QPushButton("生成视频");
     generateBtn->setMinimumHeight(40);
 
     taskHistoryBtn = new QPushButton("查看任务历史");
     taskHistoryBtn->setMinimumHeight(40);
 
+    QHBoxLayout *buttonsLayout = new QHBoxLayout;
+    buttonsLayout->setSpacing(10);
+    buttonsLayout->setContentsMargins(0, 5, 0, 5);
+    generateBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    taskHistoryBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    buttonsLayout->addWidget(generateBtn);
+    buttonsLayout->addWidget(taskHistoryBtn);
+
     progressBar = new QProgressBar;
     progressBar->setValue(0);
     progressBar->setTextVisible(false);
 
-    statusLabel = new QLabel("准备就绪");
+    statusLabel = new QLabel("准备就绪 - 请先在设置中配置 API Key");
     statusLabel->setStyleSheet("color: gray; font-size: 12px;");
     statusLabel->setAlignment(Qt::AlignCenter);
 
-    // 4. 视频播放器 (Qt6)
+    // 5. 视频播放器 (Qt6)
     videoWidget = new QVideoWidget;
-    videoWidget->setMinimumHeight(300);
+    videoWidget->setMinimumHeight(200);
     videoWidget->setStyleSheet("background-color: black;");
 
     player = new QMediaPlayer(this);
@@ -230,30 +286,22 @@ void MainWindow::setupUi() {
     player->setAudioOutput(audioOutput);
     player->setVideoOutput(videoWidget);
 
-    // 组装右侧
-    rightLayout->addWidget(settingsBox);
-    rightLayout->addWidget(parametersBox);
-    rightLayout->addWidget(new QLabel("Prompt:"));
-    rightLayout->addWidget(promptEdit);
-
-    QHBoxLayout *buttonsLayout = new QHBoxLayout;
-    buttonsLayout->setSpacing(10);
-    buttonsLayout->setContentsMargins(0, 0, 0, 0);
-    generateBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    taskHistoryBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    buttonsLayout->addWidget(generateBtn);
-    buttonsLayout->addWidget(taskHistoryBtn);
+    // 组装右侧布局
+    rightLayout->addLayout(topToolbar);
+    rightLayout->addWidget(imageInputWidget);
+    rightLayout->addLayout(contentLayout);
     rightLayout->addLayout(buttonsLayout);
-
     rightLayout->addWidget(progressBar);
     rightLayout->addWidget(statusLabel);
     rightLayout->addWidget(videoWidget, 1); // 1 表示占据剩余空间
 
     // 组装整体
     mainLayout->addWidget(historyList);
-    mainLayout->addWidget(rightWidget);
+    mainLayout->addWidget(rightWidget, 1);
 
-    resize(1000, 700);
+    // 设置窗口可调整大小
+    setMinimumSize(900, 600);
+    resize(1100, 700);
     setWindowTitle(Config::APP_NAME);
 }
 
@@ -268,17 +316,65 @@ void MainWindow::onGenerateClicked() {
     }
 
     QString prompt = promptEdit->toPlainText();
-    if(prompt.isEmpty()) {
-        QMessageBox::warning(this, "提示", "请输入提示词");
-        return;
+
+    // 检查是文生视频还是图生视频
+    bool isImageToVideo = (modeSelector->currentIndex() == 1);
+
+    if (isImageToVideo) {
+        // 图生视频模式
+        if (firstImagePath.isEmpty()) {
+            QMessageBox::warning(this, "提示", "请先选择首帧图片");
+            return;
+        }
+
+        // Prompt 在图生视频中是可选的，但建议提供
+        if (prompt.isEmpty()) {
+            QMessageBox::StandardButton reply = QMessageBox::question(
+                this,
+                "提示",
+                "未输入提示词，是否继续？\n（建议提供提示词以获得更好的生成效果）",
+                QMessageBox::Yes | QMessageBox::No
+            );
+
+            if (reply == QMessageBox::No) {
+                return;
+            }
+        }
+
+        // 转换图片为 Base64
+        QString imageBase64 = imageToBase64(firstImagePath);
+        if (imageBase64.isEmpty()) {
+            QMessageBox::warning(this, "错误", "无法读取首帧图片");
+            return;
+        }
+
+        QString lastImageBase64;
+        if (!lastImagePath.isEmpty()) {
+            lastImageBase64 = imageToBase64(lastImagePath);
+            if (lastImageBase64.isEmpty()) {
+                QMessageBox::warning(this, "错误", "无法读取尾帧图片");
+                return;
+            }
+        }
+
+        generateBtn->setEnabled(false);
+        statusLabel->setText("正在提交图生视频任务...");
+        viewModel->startImageToVideoGeneration(key, prompt, imageBase64, lastImageBase64);
+
+    } else {
+        // 文生视频模式
+        if(prompt.isEmpty()) {
+            QMessageBox::warning(this, "提示", "请输入提示词");
+            return;
+        }
+
+        // 获取用户配置的参数
+        QMap<QString, QString> params = getParameters();
+
+        generateBtn->setEnabled(false);
+        statusLabel->setText("正在提交文生视频任务...");
+        viewModel->startGeneration(key, prompt, params);
     }
-
-
-    // 获取用户配置的参数
-    QMap<QString, QString> params = getParameters();
-
-    generateBtn->setEnabled(false);
-    viewModel->startGeneration(key, prompt, params);
 }
 
 void MainWindow::onVideoReady(const QString &path) {
@@ -425,10 +521,6 @@ void MainWindow::onShowSettings() {
 }
 
 void MainWindow::onSettingsChanged() {
-    // 重新加载 API Key 显示
-    QSettings settings(Config::ORG_NAME, Config::APP_NAME);
-    QString apiKey = settings.value(Config::KEY_API_TOKEN).toString();
-    apiKeyEdit->setText(apiKey);
 
     // 重新加载 API URLs
     viewModel->getApiService()->reloadApiUrls();
@@ -454,3 +546,98 @@ QString MainWindow::extractTaskIdFromFileName(const QString &fileName) const {
 
     return "";
 }
+
+void MainWindow::onModeChanged(int index) {
+    // 0: 文生视频, 1: 图生视频
+    bool isImageToVideo = (index == 1);
+
+    // 显示/隐藏图片输入区域
+    imageInputWidget->setVisible(isImageToVideo);
+
+    // 更新按钮文本
+    if (isImageToVideo) {
+        generateBtn->setText("生成视频（图生视频）");
+        promptEdit->setPlaceholderText("请输入提示词（可选）...");
+    } else {
+        generateBtn->setText("生成视频");
+        promptEdit->setPlaceholderText("请输入提示词...");
+    }
+
+    qDebug() << "Mode changed to:" << (isImageToVideo ? "Image-to-Video" : "Text-to-Video");
+}
+
+void MainWindow::onSelectImage() {
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "选择首帧图片",
+        QDir::homePath(),
+        "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp *.tiff *.gif);;所有文件 (*.*)"
+    );
+
+    if (!fileName.isEmpty()) {
+        firstImagePath = fileName;
+        updateImagePreview(imagePreviewLabel, fileName);
+        qDebug() << "Selected first image:" << fileName;
+    }
+}
+
+void MainWindow::onSelectLastImage() {
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "选择尾帧图片（可选）",
+        QDir::homePath(),
+        "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp *.tiff *.gif);;所有文件 (*.*)"
+    );
+
+    if (!fileName.isEmpty()) {
+        lastImagePath = fileName;
+        updateImagePreview(lastImagePreviewLabel, fileName);
+        qDebug() << "Selected last image:" << fileName;
+    }
+}
+
+QString MainWindow::imageToBase64(const QString &imagePath) const {
+    QFile file(imagePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open image file:" << imagePath;
+        return "";
+    }
+
+    QByteArray imageData = file.readAll();
+    file.close();
+
+    // 获取文件扩展名以确定 MIME 类型
+    QString extension = QFileInfo(imagePath).suffix().toLower();
+    QString mimeType = "image/jpeg";  // 默认
+
+    if (extension == "png") mimeType = "image/png";
+    else if (extension == "webp") mimeType = "image/webp";
+    else if (extension == "bmp") mimeType = "image/bmp";
+    else if (extension == "tiff" || extension == "tif") mimeType = "image/tiff";
+    else if (extension == "gif") mimeType = "image/gif";
+
+    // 返回 Base64 格式：data:image/jpeg;base64,<base64-data>
+    QString base64 = "data:" + mimeType + ";base64," + imageData.toBase64();
+
+    qDebug() << "Image converted to base64, size:" << base64.length() << "chars";
+    return base64;
+}
+
+void MainWindow::updateImagePreview(QLabel *label, const QString &imagePath) {
+    QPixmap pixmap(imagePath);
+    if (pixmap.isNull()) {
+        label->setText("无法加载图片");
+        return;
+    }
+
+    // 缩放图片以适应预览区域
+    QPixmap scaledPixmap = pixmap.scaled(
+        label->maximumWidth() > 0 ? label->maximumWidth() : 300,
+        label->maximumHeight(),
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation
+    );
+
+    label->setPixmap(scaledPixmap);
+}
+
