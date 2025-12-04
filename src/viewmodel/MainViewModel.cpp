@@ -41,13 +41,13 @@ void MainViewModel::startGeneration(const QString &apiKey, const QString &prompt
     apiService->submitTask(apiKey, prompt);
 }
 
-void MainViewModel::startImageToVideoGeneration(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData) {
+void MainViewModel::startImageToVideoGeneration(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData, const QMap<QString, QString> &params) {
     currentApiKey = apiKey;
     currentPrompt = prompt;
-    currentParams.clear();  // 清空参数（图生视频使用不同的参数集）
+    currentParams = params;  // 保存参数（图生视频使用相同的参数）
     emit statusChanged("正在提交图生视频任务...");
     emit progressUpdated(10);
-    apiService->submitImageToVideoTask(apiKey, prompt, imageData, lastImageData);
+    apiService->submitImageToVideoTask(apiKey, prompt, imageData, lastImageData, params);
 }
 
 void MainViewModel::onTaskSubmitted(const QString &taskId) {

@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QMap>
 
 // Qt Application (top-level)
 #include <QApplication>

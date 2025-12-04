@@ -168,24 +168,34 @@ void MainWindow::setupUi() {
     QHBoxLayout *firstImageLayout = new QHBoxLayout;
     selectImageBtn = new QPushButton("选择首帧图片");
     selectImageBtn->setMaximumWidth(120);
+    clearImageBtn = new QPushButton("✕");
+    clearImageBtn->setMaximumWidth(30);
+    clearImageBtn->setToolTip("清除首帧图片");
+    clearImageBtn->setStyleSheet("QPushButton { color: red; font-weight: bold; }");
     imagePreviewLabel = new QLabel("未选择图片");
     imagePreviewLabel->setStyleSheet("border: 1px solid #ccc; padding: 5px;");
     imagePreviewLabel->setAlignment(Qt::AlignCenter);
     imagePreviewLabel->setMaximumHeight(80);
     imagePreviewLabel->setScaledContents(false);
     firstImageLayout->addWidget(selectImageBtn);
+    firstImageLayout->addWidget(clearImageBtn);
     firstImageLayout->addWidget(imagePreviewLabel, 1);
 
     // 尾帧图片（可选）
     QHBoxLayout *lastImageLayout = new QHBoxLayout;
     selectLastImageBtn = new QPushButton("选择尾帧图片(可选)");
     selectLastImageBtn->setMaximumWidth(120);
+    clearLastImageBtn = new QPushButton("✕");
+    clearLastImageBtn->setMaximumWidth(30);
+    clearLastImageBtn->setToolTip("清除尾帧图片");
+    clearLastImageBtn->setStyleSheet("QPushButton { color: red; font-weight: bold; }");
     lastImagePreviewLabel = new QLabel("未选择图片");
     lastImagePreviewLabel->setStyleSheet("border: 1px solid #ccc; padding: 5px;");
     lastImagePreviewLabel->setAlignment(Qt::AlignCenter);
     lastImagePreviewLabel->setMaximumHeight(80);
     lastImagePreviewLabel->setScaledContents(false);
     lastImageLayout->addWidget(selectLastImageBtn);
+    lastImageLayout->addWidget(clearLastImageBtn);
     lastImageLayout->addWidget(lastImagePreviewLabel, 1);
 
     imageInputLayout->addLayout(firstImageLayout);
@@ -195,6 +205,8 @@ void MainWindow::setupUi() {
 
     connect(selectImageBtn, &QPushButton::clicked, this, &MainWindow::onSelectImage);
     connect(selectLastImageBtn, &QPushButton::clicked, this, &MainWindow::onSelectLastImage);
+    connect(clearImageBtn, &QPushButton::clicked, this, &MainWindow::onClearFirstImage);
+    connect(clearLastImageBtn, &QPushButton::clicked, this, &MainWindow::onClearLastImage);
 
     // 3. Prompt 和参数并排布局
     QHBoxLayout *contentLayout = new QHBoxLayout;
@@ -357,9 +369,12 @@ void MainWindow::onGenerateClicked() {
             }
         }
 
+        // 获取用户配置的参数（图生视频也使用相同的参数配置）
+        QMap<QString, QString> params = getParameters();
+
         generateBtn->setEnabled(false);
         statusLabel->setText("正在提交图生视频任务...");
-        viewModel->startImageToVideoGeneration(key, prompt, imageBase64, lastImageBase64);
+        viewModel->startImageToVideoGeneration(key, prompt, imageBase64, lastImageBase64, params);
 
     } else {
         // 文生视频模式
@@ -641,3 +656,16 @@ void MainWindow::updateImagePreview(QLabel *label, const QString &imagePath) {
     label->setPixmap(scaledPixmap);
 }
 
+void MainWindow::onClearFirstImage() {
+    firstImagePath.clear();
+    imagePreviewLabel->clear();
+    imagePreviewLabel->setText("未选择图片");
+    qDebug() << "Cleared first image";
+}
+
+void MainWindow::onClearLastImage() {
+    lastImagePath.clear();
+    lastImagePreviewLabel->clear();
+    lastImagePreviewLabel->setText("未选择图片");
+    qDebug() << "Cleared last image";
+}

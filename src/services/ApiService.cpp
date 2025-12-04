@@ -100,7 +100,7 @@ void ApiService::submitTask(const QString &apiKey, const QString &prompt) {
     });
 }
 
-void ApiService::submitImageToVideoTask(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData) {
+void ApiService::submitImageToVideoTask(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData, const QMap<QString, QString> &params) {
     // 使用图生视频的 API 端点
     QString i2vUrl = submitUrl;
     // 如果当前是 t2v 端点，替换为 i2v
@@ -122,11 +122,12 @@ void ApiService::submitImageToVideoTask(const QString &apiKey, const QString &pr
         json["last_image"] = lastImageData;  // 可选的结束帧
     }
 
-    json["resolution"] = "1080p";
-    json["aspect_ratio"] = "16:9";
-    json["camera_fixed"] = false;
-    json["seed"] = 123;
-    json["duration"] = 5;  // 5 或 10 秒
+    // 使用用户配置的参数，如果没有则使用默认值
+    json["resolution"] = params.value("resolution", "1080p");
+    json["aspect_ratio"] = params.value("aspect_ratio", "16:9");
+    json["camera_fixed"] = (params.value("camera_fixed", "false") == "true");
+    json["seed"] = params.value("seed", "123").toInt();
+    json["duration"] = params.value("duration", "5").toInt();  // 使用用户配置的 duration，默认 5
 
     QByteArray jsonData = QJsonDocument(json).toJson(QJsonDocument::Compact);
     qDebug() << "Submitting Image-to-Video JSON:" << QString::fromUtf8(jsonData).left(500) << "...";  // 限制日志长度
