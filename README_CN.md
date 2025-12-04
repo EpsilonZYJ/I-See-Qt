@@ -105,7 +105,7 @@ I-See 视频生成客户端是一款使用 Qt6 构建的现代化跨平台桌面
 brew install qt@6
 
 # 克隆仓库
-git clone https://github.com/yourusername/I-See-Qt.git
+git clone https://github.com/EpsilonZYJ/I-See-Qt.git
 cd I-See-Qt
 
 # 创建构建目录
@@ -125,7 +125,7 @@ ninja
 # 从官方网站安装 Qt6: https://www.qt.io/download
 
 # 克隆仓库
-git clone https://github.com/yourusername/I-See-Qt.git
+git clone https://github.com/EpsilonZYJ/I-See-Qt.git
 cd I-See-Qt
 
 # 创建构建目录
@@ -149,7 +149,7 @@ Release\I-See.exe
 sudo apt-get install qt6-base-dev qt6-multimedia-dev libqt6sql6-sqlite
 
 # 克隆仓库
-git clone https://github.com/yourusername/I-See-Qt.git
+git clone https://github.com/EpsilonZYJ/I-See-Qt.git
 cd I-See-Qt
 
 # 创建构建目录
@@ -366,7 +366,7 @@ GET https://api.ppinfra.com/v3/async/task-result?task_id={taskId}
 
 ## ⭐ Star 历史
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/I-See-Qt&type=Date)](https://star-history.com/#yourusername/I-See-Qt&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=EpsilonZYJ/I-See-Qt&type=Date)](https://star-history.com/#EpsilonZYJ/I-See-Qt&Date)
 
 ---
 

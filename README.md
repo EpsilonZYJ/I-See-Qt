@@ -103,7 +103,7 @@ I-See Video Generator Client is a modern, cross-platform desktop application bui
 brew install qt@6
 
 # Clone the repository
-git clone https://github.com/yourusername/I-See-Qt.git
+git clone https://github.com/EpsilonZYJ/I-See-Qt.git
 cd I-See-Qt
 
 # Create build directory
@@ -123,7 +123,7 @@ ninja
 # Install Qt6 from official installer: https://www.qt.io/download
 
 # Clone the repository
-git clone https://github.com/yourusername/I-See-Qt.git
+git clone https://github.com/EpsilonZYJ/I-See-Qt.git
 cd I-See-Qt
 
 # Create build directory
@@ -147,7 +147,7 @@ Release\I-See.exe
 sudo apt-get install qt6-base-dev qt6-multimedia-dev libqt6sql6-sqlite
 
 # Clone the repository
-git clone https://github.com/yourusername/I-See-Qt.git
+git clone https://github.com/EpsilonZYJ/I-See-Qt.git
 cd I-See-Qt
 
 # Create build directory
@@ -285,7 +285,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/I-See-Qt&type=Date)](https://star-history.com/#yourusername/I-See-Qt&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=EpsilonZYJ/I-See-Qt&type=Date)](https://star-history.com/#EpsilonZYJ/I-See-Qt&Date)
 
 ---
 
