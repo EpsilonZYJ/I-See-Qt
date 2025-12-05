@@ -14,7 +14,7 @@ public:
 
     // 给 UI 调用的方法
     void startGeneration(const QString &apiKey, const QString &prompt, const QMap<QString, QString> &params = QMap<QString, QString>());
-    void startImageToVideoGeneration(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData = "");
+    void startImageToVideoGeneration(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData = "", const QMap<QString, QString> &params = QMap<QString, QString>());
     void loadHistory();
     void deleteHistoryItem(int index);
     QList<HistoryItem> getHistory() const;

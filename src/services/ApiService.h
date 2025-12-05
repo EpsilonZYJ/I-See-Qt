@@ -8,7 +8,7 @@ class ApiService : public QObject {
 public:
     explicit ApiService(QObject *parent = nullptr);
     void submitTask(const QString &apiKey, const QString &prompt);
-    void submitImageToVideoTask(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData = "");
+    void submitImageToVideoTask(const QString &apiKey, const QString &prompt, const QString &imageData, const QString &lastImageData = "", const QMap<QString, QString> &params = QMap<QString, QString>());
     void pollTask(const QString &apiKey, const QString &taskId);
     void pollAllTasks(const QString &apiKey);  // 新增：批量查询所有任务
     void downloadVideo(const QString &url);
